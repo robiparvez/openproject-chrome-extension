@@ -495,33 +495,44 @@ class IntegratedOptionsController {
         this.fileName.textContent = file.name;
         this.fileName.classList.remove('hidden');
 
-        try {
-            const result = await this.workLogService.processFile(file);
+        const result = await this.workLogService.processFile(file);
 
-            // Sync the workLogEntries from the service for UI operations
-            this.workLogEntries = this.workLogService.workLogEntries;
+        // Sync the workLogEntries from the service for UI operations
+        this.workLogEntries = this.workLogService.workLogEntries;
 
-            if (this.nextStep2) {
-                this.nextStep2.disabled = false;
-            }
-
-            this.showToaster(`Logs uploaded successfully! Found ${result.totalEntries} entries across ${result.dateCount} date(s)`, 'success');
-
-            this.completeStep(2);
-
-            this.analyzeWorkLog().catch(error => {
-                console.error('Analysis failed:', error);
-            });
-        } catch (error) {
-            this.showToaster(`Error reading file: ${error.message}`, 'error', 0, true);
-            this.logFile.value = '';
-            this.fileName.classList.add('hidden');
-
-            // If user is on step 3 and file upload failed, show the no data message
-            if (this.currentStep === 3) {
-                this.showNoDataMessage();
-            }
+        if (this.nextStep2) {
+            this.nextStep2.disabled = false;
         }
+
+        this.showToaster(`Logs uploaded successfully! Found ${result.totalEntries} entries across ${result.dateCount} date(s)`, 'success');
+
+        // Show duplicate warning if any were found
+        if (result.serverDuplicates && result.serverDuplicates.length > 0) {
+            const duplicateCount = result.serverDuplicates.length;
+            const duplicateList = result.serverDuplicates.map(dup =>
+                `<li><strong>${dup.subject}</strong><br>exists as <strong>WP #${dup.existingWorkPackageId}</strong> in <em>${dup.project}</em></li>`
+            ).join('');
+
+            const message = `
+                <div style="text-align: left;">
+                    <strong>⚠️ Found ${duplicateCount} duplicate work package${duplicateCount > 1 ? 's' : ''} on server:</strong>
+                    <ul style="margin: 10px 0; padding-left: 20px; max-height: 200px; overflow-y: auto;">
+                        ${duplicateList}
+                    </ul>
+                    <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #666;">
+                        These will appear in the "DUPLICATE WORK PACKAGES" section where you can add time to existing work packages.
+                    </p>
+                </div>
+            `;
+
+            this.showToaster(message, 'warning', 15000); // Show for 15 seconds
+        }
+
+        this.completeStep(2);
+
+        this.analyzeWorkLog().catch(error => {
+            console.error('Analysis failed:', error);
+        });
     }
 
     downloadSampleFile() {

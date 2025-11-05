@@ -83,10 +83,7 @@ export class WorkLogParser {
             for (const [projectId, projectEntries] of Object.entries(entriesByProject)) {
                 for (const { entry, originalIndex } of projectEntries) {
                     try {
-                        const existingWp = await this.apiClient.checkExistingWorkPackageBySubject(
-                            projectId,
-                            entry.subject
-                        );
+                        const existingWp = await this.apiClient.checkExistingWorkPackageBySubject(projectId, entry.subject);
 
                         if (existingWp) {
                             duplicateErrors.push({
@@ -195,17 +192,9 @@ export class WorkLogParser {
             const duplicateErrors = await this.validateAgainstServerDuplicates(allEntries);
 
             if (duplicateErrors.length > 0) {
-                const errorMessage = `Duplicate work package subjects found on server:\n\n${
-                    duplicateErrors.map(error => `• ${error.message}`).join('\n')
-                }\n\nPlease either:\n- Use the existing work package ID in your JSON\n- Modify the subject to be unique\n- Remove the duplicate entry`;
-
-                if (throwOnServerDuplicates) {
-                    throw new Error(errorMessage);
-                } else {
-                    console.warn(errorMessage);
-                    // Attach duplicate information to the results
-                    allTimeEntries._serverDuplicates = duplicateErrors;
-                }
+                // console.warn(`Found ${duplicateErrors.length} duplicate work package(s) on server`);
+                // Attach duplicate information to the results for UI to display
+                allTimeEntries._serverDuplicates = duplicateErrors;
             }
         }
 

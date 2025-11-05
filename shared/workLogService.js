@@ -43,6 +43,10 @@ export class WorkLogService {
             throw new Error('No valid entries found in the file');
         }
 
+        // Extract server duplicates info if available
+        const serverDuplicates = allDateEntries._serverDuplicates || [];
+        delete allDateEntries._serverDuplicates; // Remove metadata before processing entries
+
         this.workLogEntries = [];
         for (const [date, entries] of Object.entries(allDateEntries)) {
             this.workLogEntries.push(...entries);
@@ -51,7 +55,8 @@ export class WorkLogService {
         return {
             entries: this.workLogEntries,
             dateCount: Object.keys(allDateEntries).length,
-            totalEntries: this.workLogEntries.length
+            totalEntries: this.workLogEntries.length,
+            serverDuplicates: serverDuplicates // Pass duplicates to UI
         };
     }
 
@@ -81,17 +86,21 @@ export class WorkLogService {
 
         for (const entry of uniqueEntries) {
             if (entry.is_scrum && entry.work_package_id) {
+                console.log(`✅ Entry "${entry.subject}" categorized as SCRUM (has work_package_id: ${entry.work_package_id})`);
                 analysisResult.scrum.push(entry);
             } else if (entry.work_package_id) {
+                console.log(`✅ Entry "${entry.subject}" categorized as EXISTING (has work_package_id: ${entry.work_package_id})`);
                 analysisResult.existing.push(entry);
             } else {
                 const projectMapping = this.config.PROJECT_MAPPINGS || {};
                 const projectId = projectMapping[entry.project];
 
                 if (projectId) {
+                    console.log(`🔍 Checking entry "${entry.subject}" in project "${entry.project}" (ID: ${projectId}) for duplicates...`);
                     try {
                         const existingWp = await this.logger.checkExistingWorkPackageBySubject(projectId, entry.subject);
                         if (existingWp) {
+                            console.log(`🔄 DUPLICATE FOUND: Entry "${entry.subject}" matches existing work package ID: ${existingWp.id}`);
                             entry.existing_work_package_id = existingWp.id;
                             analysisResult.duplicates.push({
                                 ...entry,
@@ -99,15 +108,31 @@ export class WorkLogService {
                                 existing_subject: existingWp.subject
                             });
                         } else {
+                            console.log(`🆕 NEW: Entry "${entry.subject}" has no match on server, will create new work package`);
                             analysisResult.new.push(entry);
                         }
                     } catch (error) {
+                        console.error(`❌ Error checking for duplicates on entry "${entry.subject}":`, error.message);
+                        console.log(`🆕 Adding to NEW due to error`);
                         analysisResult.new.push(entry);
                     }
                 } else {
                     throw new Error(`Project mapping not found for ${entry.project}`);
                 }
             }
+        }
+
+        console.log('📊 Analysis Summary:');
+        console.log(`   SCRUM entries: ${analysisResult.scrum.length}`);
+        console.log(`   EXISTING work packages: ${analysisResult.existing.length}`);
+        console.log(`   DUPLICATE entries (found on server): ${analysisResult.duplicates.length}`);
+        console.log(`   NEW work packages to create: ${analysisResult.new.length}`);
+
+        if (analysisResult.duplicates.length > 0) {
+            console.log('🔄 Duplicate entries details:');
+            analysisResult.duplicates.forEach((dup, idx) => {
+                console.log(`   ${idx + 1}. "${dup.subject}" (Project: ${dup.project}, WP ID: ${dup.existing_work_package_id})`);
+            });
         }
 
         this.analysisData = analysisResult;

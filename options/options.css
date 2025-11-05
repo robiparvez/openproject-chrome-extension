@@ -937,7 +937,7 @@ button:disabled {
 }
 
 .modal-header h3::before {
-    content: "📋";
+    content: '📋';
     font-size: 24px;
 }
 
@@ -980,7 +980,7 @@ button:disabled {
 
 /* Scroll indicator */
 #projectsTableContainer::after {
-    content: "";
+    content: '';
     position: absolute;
     bottom: 0;
     left: 0;
@@ -1103,8 +1103,12 @@ button:disabled {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .error-state {
@@ -1573,7 +1577,7 @@ button:disabled {
     top: 20px;
     right: 20px;
     z-index: 10000;
-    max-width: 400px;
+    max-width: 500px;
 }
 
 .toaster {
@@ -1583,9 +1587,10 @@ button:disabled {
     margin-bottom: 10px;
     padding: 16px 20px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     min-width: 300px;
+    max-width: 500px;
     border-left: 4px solid #28a745;
     animation: slideInRight 0.3s ease-out;
 }
@@ -1604,17 +1609,22 @@ button:disabled {
 
 .toaster.warning {
     border-left-color: #ffc107;
+    background: #fffbf0;
 }
 
 .toaster-content {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     flex: 1;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .toaster-icon {
     margin-right: 12px;
     font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .toaster.success .toaster-icon {
@@ -1630,12 +1640,24 @@ button:disabled {
 }
 
 .toaster.warning .toaster-icon {
-    color: #ffc107;
+    color: #ff9800;
 }
 
 .toaster-message {
     color: #333;
     font-weight: 500;
+    line-height: 1.5;
+    flex: 1;
+}
+
+.toaster-message ul {
+    list-style-type: disc;
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.toaster-message li {
+    margin: 6px 0;
     line-height: 1.4;
 }
 
