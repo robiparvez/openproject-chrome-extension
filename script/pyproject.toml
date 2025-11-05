@@ -1,0 +1,18 @@
+[project]
+name = "openproject-chrome-extension"
+version = "1.0.0"
+description = "Chrome extension for streamlining time logging to OpenProject with JSON-formatted work logs"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.32.5",
+]
+authors = [
+    { name = "Robiuzzaman Parvez", email = "robiuzzaman.parvez@reddotdigitalit.com" }
+]
+readme = "README.md"
+keywords = ["openproject", "time-logging", "chrome-extension", "work-log"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]

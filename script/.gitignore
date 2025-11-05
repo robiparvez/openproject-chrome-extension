@@ -1,0 +1,29 @@
+# Python-generated files
+__pycache__/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# UV
+uv.lock
+.python-version
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Config files with sensitive data
+config.py
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

@@ -1,0 +1,32 @@
+{
+    "logs": [
+        {
+            "date": "nov-04-2025",
+            "entries": [
+                {
+                    "project": "IDCOL",
+                    "subject": "Refactor and Enhance Employee KPI Final Approval and Rating Workflow",
+                    "break_hours": null,
+                    "duration_hours": 7,
+                    "activity": "Development",
+                    "is_scrum": false,
+                    "work_package_id": null
+                }
+            ]
+        },
+        {
+            "date": "nov-05-2025",
+            "entries": [
+                {
+                    "project": "IDCOL",
+                    "subject": "Implement and Refactor KPI Final Approval Workflow with Batch Management, Enhanced UI, and Notification System",
+                    "break_hours": null,
+                    "duration_hours": 7.5,
+                    "activity": "Development",
+                    "is_scrum": false,
+                    "work_package_id": null
+                }
+            ]
+        }
+    ]
+}
