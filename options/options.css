@@ -1662,26 +1662,115 @@ button:disabled {
 }
 
 .toaster-close {
-    background: none;
-    border: none;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     color: #666;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 20px;
     font-weight: bold;
     margin-left: 15px;
     padding: 0;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: 6px;
     transition: all 0.2s ease;
+    flex-shrink: 0;
+    line-height: 1;
 }
 
 .toaster-close:hover {
-    background: #f0f0f0;
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.2);
     color: #333;
+    transform: scale(1.1);
+}
+
+.toaster-close:active {
+    transform: scale(0.95);
+}
+
+.toaster.error .toaster-close {
+    background: rgba(220, 53, 69, 0.1);
+    border-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+
+.toaster.error .toaster-close:hover {
+    background: rgba(220, 53, 69, 0.2);
+    border-color: rgba(220, 53, 69, 0.3);
+    color: #c82333;
+}
+
+.toaster.success .toaster-close {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+}
+
+.toaster.success .toaster-close:hover {
+    background: rgba(40, 167, 69, 0.2);
+    border-color: rgba(40, 167, 69, 0.3);
+    color: #218838;
+}
+
+.toaster.warning .toaster-close {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.2);
+    color: #ff9800;
+}
+
+.toaster.warning .toaster-close:hover {
+    background: rgba(255, 193, 7, 0.2);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: #e68900;
+}
+
+.toaster.info .toaster-close {
+    background: rgba(23, 162, 184, 0.1);
+    border-color: rgba(23, 162, 184, 0.2);
+    color: #17a2b8;
+}
+
+.toaster.info .toaster-close:hover {
+    background: rgba(23, 162, 184, 0.2);
+    border-color: rgba(23, 162, 184, 0.3);
+    color: #138496;
+}
+
+/* Start Time Prompt Styles */
+#startTimePrompt select {
+    transition: all 0.2s ease;
+}
+
+#startTimePrompt select:hover {
+    border-color: #3b82f6;
+    background: #fafbfc;
+}
+
+#startTimePrompt select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: white;
+}
+
+#confirmStartTimeBtn {
+    transition: all 0.2s ease;
+}
+
+#confirmStartTimeBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+#confirmStartTimeBtn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 @keyframes slideInRight {

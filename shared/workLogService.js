@@ -43,21 +43,29 @@ export class WorkLogService {
             throw new Error('No valid entries found in the file');
         }
 
-        // Extract server duplicates info if available
-        const serverDuplicates = allDateEntries._serverDuplicates || [];
-        delete allDateEntries._serverDuplicates; // Remove metadata before processing entries
-
-        this.workLogEntries = [];
-        for (const [date, entries] of Object.entries(allDateEntries)) {
-            this.workLogEntries.push(...entries);
-        }
+        const serverDuplicates = this.extractServerDuplicates(allDateEntries);
+        this.workLogEntries = this.extractWorkLogEntries(allDateEntries);
 
         return {
             entries: this.workLogEntries,
             dateCount: Object.keys(allDateEntries).length,
             totalEntries: this.workLogEntries.length,
-            serverDuplicates: serverDuplicates // Pass duplicates to UI
+            serverDuplicates: serverDuplicates
         };
+    }
+
+    extractServerDuplicates(allDateEntries) {
+        const serverDuplicates = allDateEntries._serverDuplicates || [];
+        delete allDateEntries._serverDuplicates;
+        return serverDuplicates;
+    }
+
+    extractWorkLogEntries(allDateEntries) {
+        const entries = [];
+        for (const [date, dateEntries] of Object.entries(allDateEntries)) {
+            entries.push(...dateEntries);
+        }
+        return entries;
     }
 
     async performWorkPackageAnalysis() {
@@ -73,6 +81,19 @@ export class WorkLogService {
             duplicates: []
         };
 
+        const uniqueEntries = this.getUniqueEntries();
+
+        for (const entry of uniqueEntries) {
+            await this.categorizeEntry(entry, analysisResult);
+        }
+
+        this.logAnalysisSummary(analysisResult);
+        this.analysisData = analysisResult;
+
+        return analysisResult;
+    }
+
+    getUniqueEntries() {
         const seenEntries = new Set();
         const uniqueEntries = [];
 
@@ -84,44 +105,66 @@ export class WorkLogService {
             }
         }
 
-        for (const entry of uniqueEntries) {
-            if (entry.is_scrum && entry.work_package_id) {
-                console.log(`✅ Entry "${entry.subject}" categorized as SCRUM (has work_package_id: ${entry.work_package_id})`);
-                analysisResult.scrum.push(entry);
-            } else if (entry.work_package_id) {
-                console.log(`✅ Entry "${entry.subject}" categorized as EXISTING (has work_package_id: ${entry.work_package_id})`);
-                analysisResult.existing.push(entry);
-            } else {
-                const projectMapping = this.config.PROJECT_MAPPINGS || {};
-                const projectId = projectMapping[entry.project];
+        return uniqueEntries;
+    }
 
-                if (projectId) {
-                    console.log(`🔍 Checking entry "${entry.subject}" in project "${entry.project}" (ID: ${projectId}) for duplicates...`);
-                    try {
-                        const existingWp = await this.logger.checkExistingWorkPackageBySubject(projectId, entry.subject);
-                        if (existingWp) {
-                            console.log(`🔄 DUPLICATE FOUND: Entry "${entry.subject}" matches existing work package ID: ${existingWp.id}`);
-                            entry.existing_work_package_id = existingWp.id;
-                            analysisResult.duplicates.push({
-                                ...entry,
-                                existing_work_package_id: existingWp.id,
-                                existing_subject: existingWp.subject
-                            });
-                        } else {
-                            console.log(`🆕 NEW: Entry "${entry.subject}" has no match on server, will create new work package`);
-                            analysisResult.new.push(entry);
-                        }
-                    } catch (error) {
-                        console.error(`❌ Error checking for duplicates on entry "${entry.subject}":`, error.message);
-                        console.log(`🆕 Adding to NEW due to error`);
-                        analysisResult.new.push(entry);
-                    }
-                } else {
-                    throw new Error(`Project mapping not found for ${entry.project}`);
-                }
-            }
+    async categorizeEntry(entry, analysisResult) {
+        if (entry.is_scrum && entry.work_package_id) {
+            console.log(`✅ Entry "${entry.subject}" categorized as SCRUM (has work_package_id: ${entry.work_package_id})`);
+            analysisResult.scrum.push(entry);
+            return;
         }
 
+        if (entry.work_package_id) {
+            console.log(`✅ Entry "${entry.subject}" categorized as EXISTING (has work_package_id: ${entry.work_package_id})`);
+            analysisResult.existing.push(entry);
+            return;
+        }
+
+        await this.checkForDuplicatesOrNew(entry, analysisResult);
+    }
+
+    async checkForDuplicatesOrNew(entry, analysisResult) {
+        const projectMapping = this.config.PROJECT_MAPPINGS || {};
+        const projectId = projectMapping[entry.project];
+
+        if (!projectId) {
+            throw new Error(`Project mapping not found for ${entry.project}`);
+        }
+
+        console.log(`🔍 Checking entry "${entry.subject}" in project "${entry.project}" (ID: ${projectId}) for duplicates...`);
+
+        try {
+            const existingWp = await this.logger.checkExistingWorkPackageBySubject(projectId, entry.subject);
+
+            if (existingWp) {
+                this.handleDuplicateEntry(entry, existingWp, analysisResult);
+            } else {
+                this.handleNewEntry(entry, analysisResult);
+            }
+        } catch (error) {
+            console.error(`❌ Error checking for duplicates on entry "${entry.subject}":`, error.message);
+            console.log(`🆕 Adding to NEW due to error`);
+            analysisResult.new.push(entry);
+        }
+    }
+
+    handleDuplicateEntry(entry, existingWp, analysisResult) {
+        console.log(`🔄 DUPLICATE FOUND: Entry "${entry.subject}" matches existing work package ID: ${existingWp.id}`);
+        entry.existing_work_package_id = existingWp.id;
+        analysisResult.duplicates.push({
+            ...entry,
+            existing_work_package_id: existingWp.id,
+            existing_subject: existingWp.subject
+        });
+    }
+
+    handleNewEntry(entry, analysisResult) {
+        console.log(`🆕 NEW: Entry "${entry.subject}" has no match on server, will create new work package`);
+        analysisResult.new.push(entry);
+    }
+
+    logAnalysisSummary(analysisResult) {
         console.log('📊 Analysis Summary:');
         console.log(`   SCRUM entries: ${analysisResult.scrum.length}`);
         console.log(`   EXISTING work packages: ${analysisResult.existing.length}`);
@@ -134,9 +177,6 @@ export class WorkLogService {
                 console.log(`   ${idx + 1}. "${dup.subject}" (Project: ${dup.project}, WP ID: ${dup.existing_work_package_id})`);
             });
         }
-
-        this.analysisData = analysisResult;
-        return analysisResult;
     }
 
     calculateTotalTime() {
@@ -149,9 +189,19 @@ export class WorkLogService {
 
     calculateAllTimes() {
         const validationIssues = [];
+        const entriesByDate = this.groupEntriesByDate();
 
-        // Group entries by date
+        for (const [date, entries] of Object.entries(entriesByDate)) {
+            const sortedEntries = this.sortEntriesForDate(entries);
+            this.processDateEntries(sortedEntries, validationIssues);
+        }
+
+        return validationIssues;
+    }
+
+    groupEntriesByDate() {
         const entriesByDate = {};
+
         this.workLogEntries.forEach(entry => {
             const date = entry.entry_date;
             if (!entriesByDate[date]) {
@@ -160,117 +210,136 @@ export class WorkLogService {
             entriesByDate[date].push(entry);
         });
 
-        // Calculate times for each date separately
-        for (const [date, entries] of Object.entries(entriesByDate)) {
-            // Sort entries: SCRUM entries first, then non-scrum by start time if available, then by order
-            const sortedEntries = [...entries].sort((a, b) => {
-                // SCRUM entries should be first
-                if (a.is_scrum && !b.is_scrum) return -1;
-                if (!a.is_scrum && b.is_scrum) return 1;
+        return entriesByDate;
+    }
 
-                // If both are scrum or both are non-scrum, sort by calculated_start_time if available
-                if (a.calculated_start_time && b.calculated_start_time) {
-                    const timeA = this.extractTimeFromString(a.calculated_start_time) || '00:00';
-                    const timeB = this.extractTimeFromString(b.calculated_start_time) || '00:00';
-                    return new Date(`1970-01-01T${timeA}:00`) - new Date(`1970-01-01T${timeB}:00`);
-                }
+    sortEntriesForDate(entries) {
+        return [...entries].sort((a, b) => {
+            if (a.is_scrum && !b.is_scrum) return -1;
+            if (!a.is_scrum && b.is_scrum) return 1;
 
-                // If only one has a start time, put it first
-                if (a.calculated_start_time && !b.calculated_start_time) return -1;
-                if (!a.calculated_start_time && b.calculated_start_time) return 1;
+            if (a.calculated_start_time && b.calculated_start_time) {
+                return this.compareEntryTimes(a.calculated_start_time, b.calculated_start_time);
+            }
 
-                // Otherwise maintain original order
-                const aIndex = this.workLogEntries.indexOf(a);
-                const bIndex = this.workLogEntries.indexOf(b);
-                return aIndex - bIndex;
-            });
+            if (a.calculated_start_time && !b.calculated_start_time) return -1;
+            if (!a.calculated_start_time && b.calculated_start_time) return 1;
 
-            // Reset currentTime for each date to ensure fresh start
-            let currentTime = null;
+            return this.workLogEntries.indexOf(a) - this.workLogEntries.indexOf(b);
+        });
+    }
 
-            // Track if we've processed the first non-scrum entry for this date
-            let isFirstNonScrum = true;
+    compareEntryTimes(timeA, timeB) {
+        const cleanTimeA = this.extractTimeFromString(timeA) || '00:00';
+        const cleanTimeB = this.extractTimeFromString(timeB) || '00:00';
+        return new Date(`1970-01-01T${cleanTimeA}:00`) - new Date(`1970-01-01T${cleanTimeB}:00`);
+    }
 
-            sortedEntries.forEach((entry, index) => {
-                if (entry.is_scrum) {
-                    // Validate that SCRUM entries have work_package_id
-                    if (!entry.work_package_id) {
-                        validationIssues.push({
-                            type: 'missing_work_package_id',
-                            entry: entry,
-                            message: `SCRUM entry "${entry.subject}" is missing required work_package_id`
-                        });
-                    }
+    processDateEntries(sortedEntries, validationIssues) {
+        let currentTime = null;
+        let isFirstNonScrum = true;
 
-                    // SCRUM entries have their own fixed start time
-                    if (!entry.calculated_start_time) {
-                        entry.calculated_start_time = '10:00'; // Default SCRUM time
-                    }
-                    const endTime = this.addHoursToTime(entry.calculated_start_time, entry.hours || entry.duration_hours || 0);
-                    entry.calculated_end_time = endTime;
-                    return; // Skip to next entry, don't affect isFirstNonScrum
-                }
+        sortedEntries.forEach((entry, index) => {
+            if (entry.is_scrum) {
+                this.processScrumEntry(entry, validationIssues);
+                return;
+            }
 
-                // This is a non-scrum entry
-                if (isFirstNonScrum) {
-                    // For the first non-scrum entry of each date, only use calculated_start_time if it exists
-                    // Don't inherit from previous dates - each date should start fresh for non-scrum entries
-                    if (entry.calculated_start_time) {
-                        currentTime = entry.calculated_start_time;
-                    } else {
-                        // Check if this entry should have a user-set start time
-                        if (!entry.user_set_start_time) {
-                            // This entry needs user input for start time - skip calculation for now
-                            isFirstNonScrum = false;
-                            return;
-                        }
-                        // Extract time from start_time ISO string, or default to 09:00 as fallback
-                        currentTime = this.extractTimeFromString(entry.start_time) || '09:00';
-                    }
-                    isFirstNonScrum = false; // Mark that we've processed the first non-scrum entry
-                } else {
-                    const breakHours = entry.break_hours || 0;
-                    const previousNonScrumEntry = this.findPreviousNonScrumEntry(sortedEntries, index);
-                    if (previousNonScrumEntry) {
-                        const previousEndTime = previousNonScrumEntry.calculated_end_time;
-                        currentTime = this.addHoursToTime(previousEndTime, breakHours);
-                    }
-                }
+            currentTime = this.calculateEntryStartTime(entry, sortedEntries, index, isFirstNonScrum);
+            if (isFirstNonScrum) {
+                isFirstNonScrum = false;
+            }
 
-                entry.calculated_start_time = currentTime;
-                const endTime = this.addHoursToTime(currentTime, entry.hours || entry.duration_hours || 0);
-                entry.calculated_end_time = endTime;
+            this.setEntryTimes(entry, currentTime, sortedEntries, index, validationIssues);
+            currentTime = entry.calculated_end_time;
+        });
+    }
 
-                // Debug logging for problematic entries
-                if (!currentTime || currentTime === 'Invalid Time' || !endTime || endTime === 'Invalid Time') {
-                    console.warn('Time calculation issue:', {
-                        entry: entry.subject,
-                        hours: entry.hours || entry.duration_hours,
-                        calculatedStart: currentTime,
-                        calculatedEnd: endTime
-                    });
-                }
-
-                // Check for overlaps with previous non-scrum entry
-                const prevNonScrumEntry = this.findPreviousNonScrumEntry(sortedEntries, index);
-                if (prevNonScrumEntry && prevNonScrumEntry.calculated_end_time) {
-                    const prevEndTime = new Date(`1970-01-01T${prevNonScrumEntry.calculated_end_time}:00`);
-                    const currentStartTime = new Date(`1970-01-01T${currentTime}:00`);
-
-                    if (currentStartTime < prevEndTime) {
-                        validationIssues.push({
-                            type: 'time_overlap',
-                            entry: entry,
-                            message: `Start time ${currentTime} overlaps with previous task end time ${prevNonScrumEntry.calculated_end_time}`
-                        });
-                    }
-                }
-
-                currentTime = endTime;
+    processScrumEntry(entry, validationIssues) {
+        if (!entry.work_package_id) {
+            validationIssues.push({
+                type: 'missing_work_package_id',
+                entry: entry,
+                message: `SCRUM entry "${entry.subject}" is missing required work_package_id`
             });
         }
 
-        return validationIssues;
+        if (!entry.calculated_start_time) {
+            entry.calculated_start_time = '10:00';
+        }
+
+        entry.calculated_end_time = this.addHoursToTime(entry.calculated_start_time, entry.hours || entry.duration_hours || 0);
+    }
+
+    calculateEntryStartTime(entry, sortedEntries, index, isFirstNonScrum) {
+        if (isFirstNonScrum) {
+            return this.getFirstNonScrumStartTime(entry);
+        }
+
+        return this.getSubsequentStartTime(entry, sortedEntries, index);
+    }
+
+    getFirstNonScrumStartTime(entry) {
+        if (entry.calculated_start_time) {
+            return entry.calculated_start_time;
+        }
+
+        if (!entry.user_set_start_time) {
+            return null;
+        }
+
+        return this.extractTimeFromString(entry.start_time) || '09:00';
+    }
+
+    getSubsequentStartTime(entry, sortedEntries, index) {
+        const breakHours = entry.break_hours || 0;
+        const previousEntry = this.findPreviousNonScrumEntry(sortedEntries, index);
+
+        if (!previousEntry) {
+            return null;
+        }
+
+        return this.addHoursToTime(previousEntry.calculated_end_time, breakHours);
+    }
+
+    setEntryTimes(entry, currentTime, sortedEntries, index, validationIssues) {
+        entry.calculated_start_time = currentTime;
+        entry.calculated_end_time = this.addHoursToTime(currentTime, entry.hours || entry.duration_hours || 0);
+
+        this.validateEntryTimes(entry, currentTime);
+        this.checkTimeOverlap(entry, sortedEntries, index, currentTime, validationIssues);
+    }
+
+    validateEntryTimes(entry, currentTime) {
+        const endTime = entry.calculated_end_time;
+
+        if (!currentTime || currentTime === 'Invalid Time' || !endTime || endTime === 'Invalid Time') {
+            console.warn('Time calculation issue:', {
+                entry: entry.subject,
+                hours: entry.hours || entry.duration_hours,
+                calculatedStart: currentTime,
+                calculatedEnd: endTime
+            });
+        }
+    }
+
+    checkTimeOverlap(entry, sortedEntries, index, currentTime, validationIssues) {
+        const prevEntry = this.findPreviousNonScrumEntry(sortedEntries, index);
+
+        if (!prevEntry || !prevEntry.calculated_end_time) {
+            return;
+        }
+
+        const prevEndTime = new Date(`1970-01-01T${prevEntry.calculated_end_time}:00`);
+        const currentStartTime = new Date(`1970-01-01T${currentTime}:00`);
+
+        if (currentStartTime < prevEndTime) {
+            validationIssues.push({
+                type: 'time_overlap',
+                entry: entry,
+                message: `Start time ${currentTime} overlaps with previous task end time ${prevEntry.calculated_end_time}`
+            });
+        }
     }
 
     findPreviousNonScrumEntry(entries, currentIndex) {
@@ -288,7 +357,6 @@ export class WorkLogService {
         try {
             let cleanTimeString = timeString;
 
-            // If it's an ISO string, extract just the time part
             if (timeString.includes('T')) {
                 const date = new Date(timeString);
                 cleanTimeString = date.toTimeString().slice(0, 5); // HH:MM format
@@ -440,64 +508,127 @@ export class WorkLogService {
     }
 
     async processEntry(entry, commentData = {}) {
-        const duration = entry.duration_hours || entry.hours || 0;
-        let workPackageId = entry.work_package_id || entry.existing_work_package_id;
-
-        const newEntries = this.analysisData.new || [];
-        const newEntryIndex = newEntries.findIndex(newEntry => newEntry.project === entry.project && newEntry.subject === entry.subject);
-
-        if (newEntryIndex !== -1) {
-            const comment = commentData[`comment_${newEntryIndex}`] || '';
-            const statusValue = commentData[`status_${newEntryIndex}`];
-            const selectedStatusId = statusValue ? parseInt(statusValue) : null;
-
-            if (selectedStatusId && !isNaN(selectedStatusId)) {
-                entry.statusId = selectedStatusId;
-                const statusName = this.statusData.find(s => s.id === selectedStatusId)?.name || 'Unknown Status';
-                entry.statusName = statusName;
-            }
-        }
-
+        const workPackageId = entry.work_package_id || entry.existing_work_package_id;
         const entryDate = entry.entry_date || entry.date;
+
         if (!entryDate) {
             throw new Error(`Entry missing date information: ${entry.subject}`);
         }
 
+        this.enrichEntryMetadata(entry, commentData);
+
         if (entry.is_scrum && workPackageId) {
-            await this.logger.createTimeEntry(workPackageId, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
-            return { type: 'scrum', message: `SCRUM: ${entry.project} - ${entry.subject} (${duration}h)` };
-        } else if (entry.existing_work_package_id) {
-            await this.logger.createTimeEntry(entry.existing_work_package_id, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
-            return { type: 'existing', message: `Existing WP: ${entry.project} - ${entry.subject} (${duration}h)` };
-        } else if (entry.work_package_id) {
-            await this.logger.createTimeEntry(workPackageId, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
-            return { type: 'duplicate', message: `Added time to duplicate: ${entry.project} - ${entry.subject} (+${duration}h)` };
-        } else {
-            const projectMapping = this.config.PROJECT_MAPPINGS || {};
-            const projectId = projectMapping[`${entry.project}_PROJECT`] || projectMapping[entry.project];
-
-            if (!projectId) {
-                throw new Error(`No project mapping found for project: ${entry.project}`);
-            }
-
-            const existingWorkPackage = await this.logger.findWorkPackageBySubject(projectId, entry.subject);
-
-            if (existingWorkPackage) {
-                await this.logger.createTimeEntry(existingWorkPackage.id, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
-                return { type: 'found_existing', message: `Found existing WP: ${entry.project} - ${entry.subject} (${duration}h)` };
-            } else {
-                const workPackage = await this.logger.createWorkPackage(projectId, entry.subject, entry.activity, commentData[`comment_${newEntryIndex}`] || '', entry.statusId || 7);
-
-                await this.logger.createTimeEntry(workPackage.id, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
-
-                const statusText = entry.statusName ? `, Status: ${entry.statusName}` : '';
-                return {
-                    type: 'new',
-                    message: `New WP created: ${entry.project} - ${entry.subject} (ID: ${workPackage.id}, ${duration}h${statusText})`,
-                    workPackageId: workPackage.id
-                };
-            }
+            return await this.processScrumTimeEntry(entry, workPackageId, entryDate);
         }
+
+        if (entry.existing_work_package_id) {
+            return await this.processExistingWorkPackage(entry, entryDate);
+        }
+
+        if (entry.work_package_id) {
+            return await this.processDuplicateWorkPackage(entry, workPackageId, entryDate);
+        }
+
+        return await this.processNewWorkPackage(entry, commentData, entryDate);
+    }
+
+    enrichEntryMetadata(entry, commentData) {
+        const newEntries = this.analysisData.new || [];
+        const newEntryIndex = newEntries.findIndex(newEntry => newEntry.project === entry.project && newEntry.subject === entry.subject);
+
+        if (newEntryIndex === -1) {
+            return;
+        }
+
+        const statusValue = commentData[`status_${newEntryIndex}`];
+        const selectedStatusId = statusValue ? parseInt(statusValue) : null;
+
+        if (!selectedStatusId || isNaN(selectedStatusId)) {
+            return;
+        }
+
+        entry.statusId = selectedStatusId;
+        const statusName = this.statusData.find(s => s.id === selectedStatusId)?.name || 'Unknown Status';
+        entry.statusName = statusName;
+    }
+
+    async processScrumTimeEntry(entry, workPackageId, entryDate) {
+        const duration = entry.duration_hours || entry.hours || 0;
+        await this.logger.createTimeEntry(workPackageId, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
+
+        return {
+            type: 'scrum',
+            message: `SCRUM: ${entry.project} - ${entry.subject} (${duration}h)`
+        };
+    }
+
+    async processExistingWorkPackage(entry, entryDate) {
+        const duration = entry.duration_hours || entry.hours || 0;
+        await this.logger.createTimeEntry(entry.existing_work_package_id, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
+
+        return {
+            type: 'existing',
+            message: `Existing WP: ${entry.project} - ${entry.subject} (${duration}h)`
+        };
+    }
+
+    async processDuplicateWorkPackage(entry, workPackageId, entryDate) {
+        const duration = entry.duration_hours || entry.hours || 0;
+        await this.logger.createTimeEntry(workPackageId, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
+
+        return {
+            type: 'duplicate',
+            message: `Added time to duplicate: ${entry.project} - ${entry.subject} (+${duration}h)`
+        };
+    }
+
+    async processNewWorkPackage(entry, commentData, entryDate) {
+        const projectId = this.getProjectId(entry.project);
+        const existingWorkPackage = await this.logger.findWorkPackageBySubject(projectId, entry.subject);
+
+        if (existingWorkPackage) {
+            return await this.processFoundExistingWorkPackage(entry, existingWorkPackage, entryDate);
+        }
+
+        return await this.createNewWorkPackageWithTime(entry, projectId, commentData, entryDate);
+    }
+
+    getProjectId(projectName) {
+        const projectMapping = this.config.PROJECT_MAPPINGS || {};
+        const projectId = projectMapping[`${projectName}_PROJECT`] || projectMapping[projectName];
+
+        if (!projectId) {
+            throw new Error(`No project mapping found for project: ${projectName}`);
+        }
+
+        return projectId;
+    }
+
+    async processFoundExistingWorkPackage(entry, existingWorkPackage, entryDate) {
+        const duration = entry.duration_hours || entry.hours || 0;
+        await this.logger.createTimeEntry(existingWorkPackage.id, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
+
+        return {
+            type: 'found_existing',
+            message: `Found existing WP: ${entry.project} - ${entry.subject} (${duration}h)`
+        };
+    }
+
+    async createNewWorkPackageWithTime(entry, projectId, commentData, entryDate) {
+        const newEntries = this.analysisData.new || [];
+        const newEntryIndex = newEntries.findIndex(newEntry => newEntry.project === entry.project && newEntry.subject === entry.subject);
+
+        const workPackage = await this.logger.createWorkPackage(projectId, entry.subject, entry.activity, commentData[`comment_${newEntryIndex}`] || '', entry.statusId || 7);
+
+        const duration = entry.duration_hours || entry.hours || 0;
+        await this.logger.createTimeEntry(workPackage.id, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
+
+        const statusText = entry.statusName ? `, Status: ${entry.statusName}` : '';
+        return {
+            type: 'new',
+            message: `New WP created: ${entry.project} - ${entry.subject} (ID: ${workPackage.id}, ${duration}h${statusText})`,
+            workPackageId: workPackage.id
+        };
     }
 
     async processAllEntries(commentData = {}, progressCallback = null) {
@@ -506,45 +637,59 @@ export class WorkLogService {
         }
 
         const results = [];
-        let createdCount = 0;
-        let updatedCount = 0;
-        let errorCount = 0;
+        const stats = { createdCount: 0, updatedCount: 0, errorCount: 0 };
         const totalEntries = this.workLogEntries.length;
 
         for (let i = 0; i < this.workLogEntries.length; i++) {
             const entry = this.workLogEntries[i];
 
-            if (progressCallback) {
-                progressCallback({
-                    current: i + 1,
-                    total: totalEntries,
-                    entry: entry,
-                    message: `Processing: ${entry.project} - ${entry.subject}`
-                });
-            }
-
-            try {
-                const result = await this.processEntry(entry, commentData);
-                results.push({ success: true, entry, result });
-
-                // Track created vs updated based on result type
-                if (result.type === 'new') {
-                    createdCount++;
-                } else {
-                    updatedCount++;
-                }
-            } catch (error) {
-                results.push({ success: false, entry, error: error.message });
-                errorCount++;
-            }
+            this.notifyProgress(progressCallback, i + 1, totalEntries, entry);
+            await this.processAndTrackEntry(entry, commentData, results, stats);
         }
 
+        return this.buildProcessingResult(results, stats, totalEntries);
+    }
+
+    notifyProgress(progressCallback, current, total, entry) {
+        if (!progressCallback) {
+            return;
+        }
+
+        progressCallback({
+            current,
+            total,
+            entry,
+            message: `Processing: ${entry.project} - ${entry.subject}`
+        });
+    }
+
+    async processAndTrackEntry(entry, commentData, results, stats) {
+        try {
+            const result = await this.processEntry(entry, commentData);
+            results.push({ success: true, entry, result });
+
+            this.updateStats(result.type, stats);
+        } catch (error) {
+            results.push({ success: false, entry, error: error.message });
+            stats.errorCount++;
+        }
+    }
+
+    updateStats(resultType, stats) {
+        if (resultType === 'new') {
+            stats.createdCount++;
+        } else {
+            stats.updatedCount++;
+        }
+    }
+
+    buildProcessingResult(results, stats, totalEntries) {
         return {
             results,
-            createdCount,
-            updatedCount,
-            successCount: createdCount + updatedCount, // Keep for backward compatibility
-            errorCount,
+            createdCount: stats.createdCount,
+            updatedCount: stats.updatedCount,
+            successCount: stats.createdCount + stats.updatedCount,
+            errorCount: stats.errorCount,
             totalEntries
         };
     }
@@ -576,8 +721,6 @@ export class WorkLogService {
             const firstNonScrumEntry = entries.find(entry => !entry.is_scrum);
 
             if (firstNonScrumEntry && !firstNonScrumEntry.user_set_start_time) {
-                // Clear any inherited calculated times for ALL non-scrum entries on this date
-                // This ensures each date starts completely fresh
                 entries.forEach(entry => {
                     if (!entry.is_scrum) {
                         delete entry.calculated_start_time;
@@ -591,12 +734,13 @@ export class WorkLogService {
 
         return { needsStartTime: false };
     }
+
     setStartTimeForFirstEntry(startTime, targetDate = null) {
         if (targetDate) {
             const firstNonScrumEntry = this.workLogEntries.find(entry => !entry.is_scrum && entry.entry_date === targetDate);
             if (firstNonScrumEntry) {
                 firstNonScrumEntry.calculated_start_time = startTime;
-                firstNonScrumEntry.user_set_start_time = true; // Mark as user-set
+                firstNonScrumEntry.user_set_start_time = true;
                 const validationIssues = this.calculateAllTimes();
                 return validationIssues;
             }
@@ -604,7 +748,7 @@ export class WorkLogService {
             const firstNonScrumEntry = this.workLogEntries.find(entry => !entry.is_scrum);
             if (firstNonScrumEntry) {
                 firstNonScrumEntry.calculated_start_time = startTime;
-                firstNonScrumEntry.user_set_start_time = true; // Mark as user-set
+                firstNonScrumEntry.user_set_start_time = true;
                 const validationIssues = this.calculateAllTimes();
                 return validationIssues;
             }

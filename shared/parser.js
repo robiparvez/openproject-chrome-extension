@@ -1,4 +1,3 @@
-// WorkLogParser class for processing time log data
 import { loadConfig } from './config.js';
 import { OpenProjectTimeLogger } from './apiClient.js';
 
@@ -6,8 +5,7 @@ export class WorkLogParser {
     constructor(filePath = null) {
         this.filePath = filePath;
         this.projectMappings = null;
-        this.apiClient = null; // Will be initialized when needed
-
+        this.apiClient = null;
         this.activityKeywords = {
             scrum: 'Meeting',
             meeting: 'Meeting',
@@ -37,6 +35,7 @@ export class WorkLogParser {
 
         const text = await file.text();
         let data;
+
         try {
             data = JSON.parse(text);
         } catch (e) {
@@ -47,10 +46,12 @@ export class WorkLogParser {
     }
 
     async initializeApiClient() {
-        if (!this.apiClient) {
-            this.apiClient = new OpenProjectTimeLogger();
-            await this.apiClient.initialize();
+        if (this.apiClient) {
+            return this.apiClient;
         }
+
+        this.apiClient = new OpenProjectTimeLogger();
+        await this.apiClient.initialize();
         return this.apiClient;
     }
 
@@ -63,67 +64,91 @@ export class WorkLogParser {
 
         try {
             await this.initializeApiClient();
-
-            // Group entries by project for efficient checking
-            const entriesByProject = {};
-            entries.forEach((entry, index) => {
-                // Only check entries that would create new work packages
-                if (!entry.work_package_id && !entry.is_scrum) {
-                    const projectId = entry.project_id;
-                    if (projectId) {
-                        if (!entriesByProject[projectId]) {
-                            entriesByProject[projectId] = [];
-                        }
-                        entriesByProject[projectId].push({ entry, originalIndex: index });
-                    }
-                }
-            });
-
-            // Check each project for existing work packages
-            for (const [projectId, projectEntries] of Object.entries(entriesByProject)) {
-                for (const { entry, originalIndex } of projectEntries) {
-                    try {
-                        const existingWp = await this.apiClient.checkExistingWorkPackageBySubject(projectId, entry.subject);
-
-                        if (existingWp) {
-                            duplicateErrors.push({
-                                entryIndex: originalIndex,
-                                subject: entry.subject,
-                                project: entry.project,
-                                projectId: projectId,
-                                existingWorkPackageId: existingWp.id,
-                                existingSubject: existingWp.subject,
-                                message: `Work package with subject "${entry.subject}" already exists in project "${entry.project}" (ID: ${existingWp.id}). Use that work package ID or modify the subject.`
-                            });
-                        }
-                    } catch (error) {
-                        console.warn(`Could not check for duplicates in project ${projectId}:`, error.message);
-                        // Continue with other entries rather than failing completely
-                    }
-                }
-            }
+            const entriesByProject = this.groupEntriesByProject(entries);
+            const duplicates = await this.checkProjectDuplicates(entriesByProject);
+            duplicateErrors.push(...duplicates);
         } catch (error) {
             console.warn('Could not initialize API client for duplicate checking:', error.message);
-            // Return empty array to allow processing to continue
             return [];
         }
 
         return duplicateErrors;
     }
 
+    groupEntriesByProject(entries) {
+        const entriesByProject = {};
+
+        entries.forEach((entry, index) => {
+            if (this.shouldCheckForDuplicates(entry)) {
+                const projectId = entry.project_id;
+                if (projectId) {
+                    if (!entriesByProject[projectId]) {
+                        entriesByProject[projectId] = [];
+                    }
+                    entriesByProject[projectId].push({ entry, originalIndex: index });
+                }
+            }
+        });
+
+        return entriesByProject;
+    }
+
+    shouldCheckForDuplicates(entry) {
+        return !entry.work_package_id && !entry.is_scrum;
+    }
+
+    async checkProjectDuplicates(entriesByProject) {
+        const duplicateErrors = [];
+        const totalProjects = Object.keys(entriesByProject).length;
+        let processedProjects = 0;
+
+        console.log(`Checking ${totalProjects} project(s) for duplicate work packages...`);
+
+        for (const [projectId, projectEntries] of Object.entries(entriesByProject)) {
+            processedProjects++;
+            console.log(`Checking project ${processedProjects}/${totalProjects} (ID: ${projectId})...`);
+
+            for (const { entry, originalIndex } of projectEntries) {
+                const duplicate = await this.checkEntryDuplicate(entry, projectId, originalIndex);
+                if (duplicate) {
+                    duplicateErrors.push(duplicate);
+                }
+            }
+        }
+
+        return duplicateErrors;
+    }
+
+    async checkEntryDuplicate(entry, projectId, originalIndex) {
+        try {
+            const existingWp = await this.apiClient.checkExistingWorkPackageBySubject(projectId, entry.subject);
+
+            if (!existingWp) {
+                return null;
+            }
+
+            return {
+                entryIndex: originalIndex,
+                subject: entry.subject,
+                project: entry.project,
+                projectId: projectId,
+                existingWorkPackageId: existingWp.id,
+                existingSubject: existingWp.subject,
+                message: `Work package with subject "${entry.subject}" already exists in project "${entry.project}" (ID: ${existingWp.id}). Use that work package ID or modify the subject.`
+            };
+        } catch (error) {
+            console.warn(`Could not check for duplicates in project ${projectId}:`, error.message);
+            return null;
+        }
+    }
+
     async parseJsonWorkLogContent(data, options = {}) {
         const config = await loadConfig();
         this.projectMappings = config.PROJECT_MAPPINGS;
 
-        // Options for controlling validation
-        const {
-            validateAgainstServer = true, // Check for duplicates against server
-            throwOnServerDuplicates = true // Whether to throw error or just warn
-        } = options;
+        const { validateAgainstServer = true, throwOnServerDuplicates = true } = options;
 
-        const allTimeEntries = {};
-
-        if (!data.logs || !Array.isArray(data.logs)) {
+        if (!this.hasValidLogsArray(data)) {
             throw new Error("Invalid JSON format: Missing 'logs' array");
         }
 
@@ -131,78 +156,126 @@ export class WorkLogParser {
             throw new Error("No log entries found in 'logs' array");
         }
 
-        // Collect all entries for server validation
+        const { allTimeEntries, allEntries } = await this.processLogEntries(data.logs);
+
+        if (validateAgainstServer && allEntries.length > 0) {
+            await this.addServerDuplicateValidation(allTimeEntries, allEntries);
+        }
+
+        return allTimeEntries;
+    }
+
+    hasValidLogsArray(data) {
+        return data.logs && Array.isArray(data.logs);
+    }
+
+    async processLogEntries(logs) {
+        const allTimeEntries = {};
         const allEntries = [];
 
-        for (let logIndex = 0; logIndex < data.logs.length; logIndex++) {
-            const logEntry = data.logs[logIndex];
+        for (let logIndex = 0; logIndex < logs.length; logIndex++) {
+            const logEntry = logs[logIndex];
 
             if (!logEntry.date) {
                 console.warn(`Log entry ${logIndex + 1} missing 'date' field, skipping`);
                 continue;
             }
 
-            const dateStr = logEntry.date;
-            let parsedDate;
-
-            try {
-                parsedDate = this.parseDateString(dateStr);
-            } catch (e) {
-                console.warn(`Log entry ${logIndex + 1} has invalid date format '${dateStr}': ${e.message}`);
-                continue;
-            }
-
-            const entries = logEntry.entries || [];
-            if (!Array.isArray(entries)) {
-                console.warn(`Log entry ${logIndex + 1} 'entries' must be an array, skipping`);
-                continue;
-            }
-
-            const timeEntries = [];
-            let currentTime = new Date();
-            currentTime.setHours(9, 0, 0, 0);
-
-            for (let entryIndex = 0; entryIndex < entries.length; entryIndex++) {
-                const entryData = entries[entryIndex];
-
-                const validationErrors = this.validateEntryData(entryData, entryIndex + 1);
-                if (validationErrors.length > 0) {
-                    console.error(`Validation errors for log date ${dateStr}, entry ${entryIndex + 1}:`);
-                    validationErrors.forEach(error => console.error(`  - ${error}`));
-                    console.error('Skipping this entry due to validation errors.');
-                    continue;
+            const result = await this.processLogEntry(logEntry, logIndex);
+            if (result) {
+                const { parsedDate, timeEntries } = result;
+                if (timeEntries.length > 0) {
+                    allTimeEntries[parsedDate] = timeEntries;
+                    allEntries.push(...timeEntries);
                 }
-
-                const entry = await this.parseJsonTaskEntry(entryData, currentTime, parsedDate);
-                if (entry) {
-                    timeEntries.push(entry);
-                    allEntries.push(entry); // Collect for server validation
-                    currentTime = new Date(entry.end_time);
-                }
-            }
-
-            if (timeEntries.length > 0) {
-                allTimeEntries[parsedDate] = timeEntries;
             }
         }
 
-        // Perform server-side duplicate validation if enabled
-        if (validateAgainstServer && allEntries.length > 0) {
-            console.log('Checking for duplicate subjects against OpenProject server...');
-            const duplicateErrors = await this.validateAgainstServerDuplicates(allEntries);
+        return { allTimeEntries, allEntries };
+    }
 
-            if (duplicateErrors.length > 0) {
-                // console.warn(`Found ${duplicateErrors.length} duplicate work package(s) on server`);
-                // Attach duplicate information to the results for UI to display
-                allTimeEntries._serverDuplicates = duplicateErrors;
+    async processLogEntry(logEntry, logIndex) {
+        const dateStr = logEntry.date;
+        let parsedDate;
+
+        try {
+            parsedDate = this.parseDateString(dateStr);
+        } catch (e) {
+            console.warn(`Log entry ${logIndex + 1} has invalid date format '${dateStr}': ${e.message}`);
+            return null;
+        }
+
+        const entries = logEntry.entries || [];
+        if (!Array.isArray(entries)) {
+            console.warn(`Log entry ${logIndex + 1} 'entries' must be an array, skipping`);
+            return null;
+        }
+
+        const timeEntries = await this.processDateEntries(entries, dateStr, parsedDate);
+        return { parsedDate, timeEntries };
+    }
+
+    async processDateEntries(entries, dateStr, parsedDate) {
+        const timeEntries = [];
+        let currentTime = new Date();
+        currentTime.setHours(9, 0, 0, 0);
+
+        for (let entryIndex = 0; entryIndex < entries.length; entryIndex++) {
+            const entryData = entries[entryIndex];
+            const validationErrors = this.validateEntryData(entryData, entryIndex + 1);
+
+            if (validationErrors.length > 0) {
+                this.logValidationErrors(dateStr, entryIndex + 1, validationErrors);
+                continue;
+            }
+
+            const entry = await this.parseJsonTaskEntry(entryData, currentTime, parsedDate);
+            if (entry) {
+                timeEntries.push(entry);
+                currentTime = new Date(entry.end_time);
             }
         }
 
-        return allTimeEntries;
+        return timeEntries;
+    }
+
+    logValidationErrors(dateStr, entryIndex, validationErrors) {
+        console.error(`Validation errors for log date ${dateStr}, entry ${entryIndex}:`);
+        validationErrors.forEach(error => console.error(`  - ${error}`));
+        console.error('Skipping this entry due to validation errors.');
+    }
+
+    async addServerDuplicateValidation(allTimeEntries, allEntries) {
+        console.log('Checking for duplicate subjects against OpenProject server...');
+        const duplicateErrors = await this.validateAgainstServerDuplicates(allEntries);
+
+        if (duplicateErrors.length > 0) {
+            allTimeEntries._serverDuplicates = duplicateErrors;
+        }
     }
 
     parseDateString(dateStr) {
-        const monthNames = {
+        const monthNames = this.getMonthNames();
+        const pattern = /^(\w+)-(\d{1,2})-(\d{4})$/;
+        const match = dateStr.toLowerCase().match(pattern);
+
+        if (!match) {
+            throw new Error(`Date must be in format 'month-day-year' (e.g., 'sept-07-2025'), got '${dateStr}'`);
+        }
+
+        const [, monthStr, day, year] = match;
+        const month = monthNames[monthStr.toLowerCase()];
+
+        if (!month) {
+            const availableMonths = [...new Set(Object.keys(monthNames))].sort();
+            throw new Error(`Invalid month '${monthStr}'. Available: ${availableMonths.join(', ')}`);
+        }
+
+        return this.buildDateString(year, month, day, monthStr);
+    }
+
+    getMonthNames() {
+        return {
             jan: 1,
             january: 1,
             feb: 2,
@@ -228,48 +301,44 @@ export class WorkLogParser {
             dec: 12,
             december: 12
         };
+    }
 
-        // Expected format: month-day-year (e.g., "sept-07-2025")
-        const pattern = /^(\w+)-(\d{1,2})-(\d{4})$/;
-        const match = dateStr.toLowerCase().match(pattern);
-
-        if (!match) {
-            throw new Error(`Date must be in format 'month-day-year' (e.g., 'sept-07-2025'), got '${dateStr}'`);
-        }
-
-        const [, monthStr, day, year] = match;
-        const month = monthNames[monthStr.toLowerCase()];
-
-        if (!month) {
-            const availableMonths = [...new Set(Object.keys(monthNames))].sort();
-            throw new Error(`Invalid month '${monthStr}'. Available: ${availableMonths.join(', ')}`);
-        }
-
+    buildDateString(year, month, day, monthStr) {
         try {
             const yearNum = parseInt(year);
             const monthNum = parseInt(month);
             const dayNum = parseInt(day);
 
-            if (yearNum < 1900 || yearNum > 3000) {
-                throw new Error(`Invalid year: ${year}`);
-            }
-            if (monthNum < 1 || monthNum > 12) {
-                throw new Error(`Invalid month: ${month}`);
-            }
-            if (dayNum < 1 || dayNum > 31) {
-                throw new Error(`Invalid day: ${day}`);
-            }
-
-            const testDate = new Date(yearNum, monthNum - 1, dayNum);
-            if (testDate.getFullYear() !== yearNum || testDate.getMonth() !== monthNum - 1 || testDate.getDate() !== dayNum) {
-                throw new Error(`Invalid date: ${monthStr}-${day}-${year}`);
-            }
+            this.validateDateComponents(yearNum, monthNum, dayNum, year, month, day);
+            this.validateActualDate(yearNum, monthNum, dayNum, monthStr, day, year);
 
             const monthPadded = monthNum.toString().padStart(2, '0');
             const dayPadded = dayNum.toString().padStart(2, '0');
+
             return `${yearNum}-${monthPadded}-${dayPadded}`;
         } catch (e) {
             throw new Error(`Invalid date values: ${e.message}`);
+        }
+    }
+
+    validateDateComponents(yearNum, monthNum, dayNum, year, month, day) {
+        if (yearNum < 1900 || yearNum > 3000) {
+            throw new Error(`Invalid year: ${year}`);
+        }
+        if (monthNum < 1 || monthNum > 12) {
+            throw new Error(`Invalid month: ${month}`);
+        }
+        if (dayNum < 1 || dayNum > 31) {
+            throw new Error(`Invalid day: ${day}`);
+        }
+    }
+
+    validateActualDate(yearNum, monthNum, dayNum, monthStr, day, year) {
+        const testDate = new Date(yearNum, monthNum - 1, dayNum);
+        const isValidDate = testDate.getFullYear() === yearNum && testDate.getMonth() === monthNum - 1 && testDate.getDate() === dayNum;
+
+        if (!isValidDate) {
+            throw new Error(`Invalid date: ${monthStr}-${day}-${year}`);
         }
     }
 
@@ -277,7 +346,16 @@ export class WorkLogParser {
         const errors = [];
         const prefix = entryIndex ? `Entry ${entryIndex}: ` : 'Entry: ';
 
+        this.validateRequiredFields(entryData, prefix, errors);
+        this.validateProjectMapping(entryData, prefix, errors);
+        this.validateFieldTypes(entryData, prefix, errors);
+
+        return errors;
+    }
+
+    validateRequiredFields(entryData, prefix, errors) {
         const requiredFields = ['project', 'subject', 'duration_hours', 'activity', 'is_scrum'];
+
         for (const field of requiredFields) {
             if (!(field in entryData)) {
                 errors.push(`${prefix}Missing required field '${field}'`);
@@ -285,12 +363,20 @@ export class WorkLogParser {
                 errors.push(`${prefix}Field '${field}' cannot be null`);
             }
         }
+    }
 
-        if (entryData.project && this.projectMappings && !(entryData.project in this.projectMappings)) {
+    validateProjectMapping(entryData, prefix, errors) {
+        if (!entryData.project || !this.projectMappings) {
+            return;
+        }
+
+        if (!(entryData.project in this.projectMappings)) {
             const allowedProjects = Object.keys(this.projectMappings);
             errors.push(`${prefix}Invalid project '${entryData.project}'. Allowed values: ${allowedProjects.join(', ')}`);
         }
+    }
 
+    validateFieldTypes(entryData, prefix, errors) {
         if (entryData.subject !== undefined) {
             if (typeof entryData.subject !== 'string' || !entryData.subject.trim()) {
                 errors.push(`${prefix}Field 'subject' must be a non-empty string`);
@@ -323,92 +409,86 @@ export class WorkLogParser {
                 errors.push(`${prefix}Field 'work_package_id' must be a positive integer or null`);
             }
         }
-
-        return errors;
     }
 
     async parseJsonTaskEntry(entryData, startTime, entryDate) {
-        const project = entryData.project;
-        const subject = entryData.subject || entryData.description;
-        let activity = entryData.activity || 'Development';
+        const { project, subject, description, activity, work_package_id, is_scrum } = entryData;
+        const taskSubject = subject || description;
 
-        if (!project || !subject) {
+        if (!project || !taskSubject) {
             return null;
         }
 
-        let durationHours = entryData.duration_hours || 0;
-        if (typeof durationHours === 'string') {
-            durationHours = parseFloat(durationHours.replace('h', '')) || 0;
-        } else {
-            durationHours = parseFloat(durationHours) || 0;
-        }
-
+        const durationHours = this.parseDurationHours(entryData.duration_hours);
         if (durationHours === 0) {
             return null;
         }
 
-        const isScrum = !!entryData.is_scrum;
-        const workPackageId = entryData.work_package_id;
+        const isScrum = !!is_scrum;
         const breakHours = entryData.break_hours || 0;
         const breakMinutes = breakHours ? Math.round(breakHours * 60) : 0;
 
-        let actualStartTime;
-        let createNewTask = false;
+        const actualStartTime = this.calculateStartTime(isScrum, startTime, breakMinutes);
 
-        if (isScrum) {
-            if (!workPackageId) {
-                return null;
-            }
-            actualStartTime = new Date(startTime);
-            actualStartTime.setHours(10, 0, 0, 0);
-            createNewTask = false;
-        } else {
-            actualStartTime = new Date(startTime.getTime() + breakMinutes * 60 * 1000);
-            createNewTask = !workPackageId;
+        if (isScrum && !work_package_id) {
+            return null;
         }
 
         const endTime = new Date(actualStartTime.getTime() + durationHours * 60 * 60 * 1000);
-
-        if (!entryData.activity) {
-            activity = this.determineActivity(subject);
-        }
+        const taskActivity = activity || this.determineActivity(taskSubject);
 
         return {
             project,
-            work_package_id: workPackageId,
+            work_package_id: work_package_id,
             project_id: this.projectMappings ? this.projectMappings[project] : null,
-            subject,
-            activity,
+            subject: taskSubject,
+            activity: taskActivity,
             start_time: actualStartTime.toISOString(),
             end_time: endTime.toISOString(),
             hours: durationHours,
             break_minutes: breakMinutes,
             break_hours: breakHours,
-            create_new_task: createNewTask,
             is_scrum: isScrum,
-            needs_user_choice: !isScrum && !workPackageId,
             entry_date: entryDate
         };
     }
 
+    parseDurationHours(durationHours) {
+        if (!durationHours) {
+            return 0;
+        }
+
+        if (typeof durationHours === 'string') {
+            return parseFloat(durationHours.replace('h', '')) || 0;
+        }
+
+        return parseFloat(durationHours) || 0;
+    }
+
+    calculateStartTime(isScrum, startTime, breakMinutes) {
+        if (isScrum) {
+            const scrumStartTime = new Date(startTime);
+            scrumStartTime.setHours(10, 0, 0, 0);
+            return scrumStartTime;
+        }
+
+        return new Date(startTime.getTime() + breakMinutes * 60 * 1000);
+    }
+
     determineActivity(taskDescription) {
         const taskLower = taskDescription.toLowerCase();
-
         for (const [keyword, activity] of Object.entries(this.activityKeywords)) {
             if (taskLower.includes(keyword)) {
                 return activity;
             }
         }
-
         return 'Development';
     }
 
     getDateFromFilename(filePath) {
         if (!filePath) return null;
-
         const filename = filePath.split('/').pop().split('\\').pop();
         const datePatterns = [/(\w+)-(\d{1,2})-(\d{4})/, /(\d{4})-(\d{1,2})-(\d{1,2})/, /(\d{1,2})-(\d{1,2})-(\d{4})/];
-
         const monthNames = {
             jan: 1,
             january: 1,
@@ -435,7 +515,6 @@ export class WorkLogParser {
             dec: 12,
             december: 12
         };
-
         for (const pattern of datePatterns) {
             const match = filename.match(pattern);
             if (match) {
@@ -449,7 +528,6 @@ export class WorkLogParser {
                 }
             }
         }
-
         return null;
     }
 }
