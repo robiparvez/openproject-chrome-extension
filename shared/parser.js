@@ -220,8 +220,28 @@ export class WorkLogParser {
         let currentTime = new Date();
         currentTime.setHours(9, 0, 0, 0);
 
+        // Check for duplicate subjects within the same date
+        const sameDateSubjects = new Set();
+        const sameDateDuplicates = [];
+
         for (let entryIndex = 0; entryIndex < entries.length; entryIndex++) {
             const entryData = entries[entryIndex];
+
+            // Check for same-date duplicates (only for non-scrum, non-work_package_id entries)
+            if (!entryData.is_scrum && !entryData.work_package_id && entryData.subject) {
+                const subjectKey = `${entryData.project}|${entryData.subject}`;
+                if (sameDateSubjects.has(subjectKey)) {
+                    sameDateDuplicates.push({
+                        entryIndex,
+                        subject: entryData.subject,
+                        project: entryData.project,
+                        date: dateStr
+                    });
+                } else {
+                    sameDateSubjects.add(subjectKey);
+                }
+            }
+
             const validationErrors = this.validateEntryData(entryData, entryIndex + 1);
 
             if (validationErrors.length > 0) {
@@ -234,6 +254,14 @@ export class WorkLogParser {
                 timeEntries.push(entry);
                 currentTime = new Date(entry.end_time);
             }
+        }
+
+        // If same-date duplicates found, throw error
+        if (sameDateDuplicates.length > 0) {
+            const duplicateMessages = sameDateDuplicates.map(dup =>
+                `  - "${dup.subject}" in project "${dup.project}" (entry ${dup.entryIndex + 1})`
+            ).join('\n');
+            throw new Error(`Duplicate subjects found within the same date (${dateStr}):\n${duplicateMessages}\n\nPlease use unique subjects for entries on the same date, or add a work_package_id to reuse an existing work package.`);
         }
 
         return timeEntries;

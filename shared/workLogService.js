@@ -10,6 +10,7 @@ export class WorkLogService {
         this.workLogEntries = [];
         this.analysisData = null;
         this.statusData = [];
+        this.subjectToWorkPackageMap = {}; // Track created work packages by subject across dates
     }
 
     async initialize() {
@@ -36,6 +37,9 @@ export class WorkLogService {
         if (!file.name.toLowerCase().endsWith('.json')) {
             throw new Error('The uploaded file must be a JSON file');
         }
+
+        // Clear the subject-to-work-package map for new file upload
+        this.subjectToWorkPackageMap = {};
 
         const allDateEntries = await this.parser.parseWorkLogFile(file);
 
@@ -618,7 +622,30 @@ export class WorkLogService {
         const newEntries = this.analysisData.new || [];
         const newEntryIndex = newEntries.findIndex(newEntry => newEntry.project === entry.project && newEntry.subject === entry.subject);
 
+        // Create a unique key for subject tracking (project + subject)
+        const subjectKey = `${entry.project}|${entry.subject}`;
+
+        // Check if we already created a work package for this subject across different dates
+        if (this.subjectToWorkPackageMap[subjectKey]) {
+            const existingWorkPackageId = this.subjectToWorkPackageMap[subjectKey];
+            console.log(`♻️ Reusing existing work package ID ${existingWorkPackageId} for subject: "${entry.subject}" (cross-date reuse)`);
+
+            const duration = entry.duration_hours || entry.hours || 0;
+            await this.logger.createTimeEntry(existingWorkPackageId, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);
+
+            return {
+                type: 'reused',
+                message: `Reused WP (cross-date): ${entry.project} - ${entry.subject} (ID: ${existingWorkPackageId}, ${duration}h)`,
+                workPackageId: existingWorkPackageId
+            };
+        }
+
+        // Create new work package if not found in map
         const workPackage = await this.logger.createWorkPackage(projectId, entry.subject, entry.activity, commentData[`comment_${newEntryIndex}`] || '', entry.statusId || 7);
+
+        // Store the work package ID in the map for future reuse
+        this.subjectToWorkPackageMap[subjectKey] = workPackage.id;
+        console.log(`📝 Stored work package ID ${workPackage.id} for subject: "${entry.subject}"`);
 
         const duration = entry.duration_hours || entry.hours || 0;
         await this.logger.createTimeEntry(workPackage.id, entryDate, entry.calculated_start_time || entry.start_time, duration, entry.activity, `[${entry.project}] ${entry.subject}`);

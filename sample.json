@@ -1,23 +1,101 @@
 {
     "logs": [
         {
-            "date": "nov-10-2025",
+            "date": "nov-17-2025",
             "entries": [
                 {
-                    "project": "CBL",
-                    "subject": "Update and fix all the superset reports on both client's stage & prod server",
-                    "break_hours": null,
-                    "duration_hours": 2.5,
+                    "project": "IDCOL",
+                    "subject": "KPI & Recruitment Feedback",
+                    "break_hours": 0.5,
+                    "duration_hours": 7,
                     "activity": "Development",
                     "is_scrum": false,
-                    "work_package_id": 10767
+                    "work_package_id": 11218
+                }
+            ]
+        },
+        {
+            "date": "nov-18-2025",
+            "entries": [
+                {
+                    "project": "IDCOL",
+                    "subject": "Candidate Portal Recruitment Feedback",
+                    "break_hours": 0.25,
+                    "duration_hours": 5,
+                    "activity": "Development",
+                    "is_scrum": false,
+                    "work_package_id": null
+                },
+                {
+                    "project": "COMMON-SLASH-GENERAL-PURPOSE-AND-MEETINGS-HR-ACTIVITY",
+                    "subject": "Meeting with imdad vai regarding remaining tasks of different projects",
+                    "break_hours": 0.5,
+                    "duration_hours": 1,
+                    "activity": "Meeting",
+                    "is_scrum": false,
+                    "work_package_id": null
+                },
+                {
+                    "project": "COMMON-SLASH-RFS-AND-DEMO-SUPPORT",
+                    "subject": "WALTON client meeting regarding change requests",
+                    "break_hours": 0.5,
+                    "duration_hours": 1.5,
+                    "activity": "Meeting",
+                    "is_scrum": false,
+                    "work_package_id": null
+                }
+            ]
+        },
+        {
+            "date": "nov-19-2025",
+            "entries": [
+                {
+                    "project": "IDCOL",
+                    "subject": "KPI rating Update, Employee attendance & Recruitment Feedback",
+                    "break_hours": 0.5,
+                    "duration_hours": 6,
+                    "activity": "Development",
+                    "is_scrum": false,
+                    "work_package_id": null
                 },
                 {
                     "project": "ROBI-HR4U",
-                    "subject": "HR4U project setup for mail template tasks",
+                    "subject": "KPI to Goal change support on new UI",
+                    "break_hours": 0.67,
+                    "duration_hours": 1,
+                    "activity": "Support",
+                    "is_scrum": false,
+                    "work_package_id": null
+                }
+            ]
+        },
+        {
+            "date": "nov-20-2025",
+            "entries": [
+                {
+                    "project": "IDCOL",
+                    "subject": "Attendance Module -> Added attendance report seprarate start, end date selection & updated 'Average Report' as per feedback",
                     "break_hours": 0.25,
+                    "duration_hours": 4,
+                    "activity": "Development",
+                    "is_scrum": false,
+                    "work_package_id": null
+                },
+                {
+                    "project": "CBL",
+                    "subject": "Dashboard - added Sub-Branch information as Branch wise employee list",
+                    "break_hours": 0.67,
                     "duration_hours": 2,
                     "activity": "Development",
+                    "is_scrum": false,
+                    "work_package_id": null
+                },
+                {
+                    "project": "COMMON-SLASH-GENERAL-PURPOSE-AND-MEETINGS-HR-ACTIVITY",
+                    "subject": "COI Mandatory Training",
+                    "break_hours": 0.67,
+                    "duration_hours": 1,
+                    "activity": "Training",
                     "is_scrum": false,
                     "work_package_id": null
                 }

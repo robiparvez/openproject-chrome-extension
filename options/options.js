@@ -495,26 +495,50 @@ class IntegratedOptionsController {
         this.setupApiProgressTracking();
 
         try {
+            // Process file and perform work package analysis
             const result = await this.workLogService.processFile(file);
-            this.hideUploadLoader();
             this.workLogEntries = this.workLogService.workLogEntries;
+
+            if (this.hasDuplicates(result.serverDuplicates)) {
+                this.hideUploadLoader();
+                this.handleDuplicates(result.serverDuplicates);
+                return;
+            }
+
+            // Update loader message for analysis phase
+            this.updateUploadLoaderProgress('Analyzing work packages...');
+
+            // Perform work package analysis
+            await this.workLogService.initialize();
+            await this.workLogService.performWorkPackageAnalysis();
+
+            // All API calls completed successfully
+            this.hideUploadLoader();
 
             if (this.nextStep2) {
                 this.nextStep2.disabled = false;
             }
 
-            if (this.hasDuplicates(result.serverDuplicates)) {
-                this.handleDuplicates(result.serverDuplicates);
-                return;
-            }
-
             this.showToaster(`Logs uploaded successfully! Found ${result.totalEntries} entries across ${result.dateCount} date(s)`, 'success');
 
             this.completeStep(2);
-            this.analyzeWorkLog().catch(error => {
-                console.error('Analysis failed:', error);
-            });
+            this.displayAnalysis();
+
+            if (this.analysisSection) {
+                this.analysisSection.style.display = 'block';
+            }
+
+            if (this.processBtn) {
+                this.processBtn.disabled = false;
+            }
+
+            // Auto-continue to next step after success message is shown
+            setTimeout(() => {
+                this.goToStep(3);
+            }, 1500);
+
         } catch (error) {
+            this.hideUploadLoader();
             this.handleFileUploadError(error);
         }
     }
@@ -608,8 +632,12 @@ class IntegratedOptionsController {
 
         try {
             this.isAnalyzing = true;
-            await this.workLogService.initialize();
-            await this.workLogService.performWorkPackageAnalysis();
+
+            // Only perform analysis if not already done during file upload
+            if (!this.workLogService.analysisData) {
+                await this.workLogService.initialize();
+                await this.workLogService.performWorkPackageAnalysis();
+            }
 
             this.displayAnalysis();
 
