@@ -576,7 +576,28 @@ class IntegratedOptionsController {
 
     handleFileUploadError(error) {
         this.hideUploadLoader();
-        this.showToaster(`Upload failed: ${error.message}`, 'error', 10000);
+
+        // Check if this is a same-date duplicate validation error
+        const isSameDateDuplicateError = error.message.includes('🔴 Duplicate subjects found on the same date');
+
+        if (isSameDateDuplicateError) {
+            // Format the error message for better display
+            const formattedMessage = error.message.replace(/\n/g, '<br>');
+            this.showToaster(`<div style="text-align: left; white-space: pre-wrap; font-family: monospace; font-size: 0.9em;">${formattedMessage}</div>`, 'error', 0, true);
+
+            // Disable next step button to prevent navigation
+            if (this.nextStep2) {
+                this.nextStep2.disabled = true;
+            }
+
+            // Disable process button if visible
+            if (this.processBtn) {
+                this.processBtn.disabled = true;
+            }
+        } else {
+            // Regular error handling
+            this.showToaster(`Upload failed: ${error.message}`, 'error', 10000);
+        }
 
         if (this.logFile) {
             this.logFile.value = '';

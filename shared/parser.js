@@ -216,12 +216,13 @@ export class WorkLogParser {
     }
 
     async processDateEntries(entries, dateStr, parsedDate) {
+        console.log(`🗓️ Processing date ${dateStr}: ${entries.length} raw entries`);
         const timeEntries = [];
         let currentTime = new Date();
         currentTime.setHours(9, 0, 0, 0);
 
         // Check for duplicate subjects within the same date
-        const sameDateSubjects = new Set();
+        const sameDateSubjects = new Map(); // Store with hours for better error message
         const sameDateDuplicates = [];
 
         for (let entryIndex = 0; entryIndex < entries.length; entryIndex++) {
@@ -231,14 +232,20 @@ export class WorkLogParser {
             if (!entryData.is_scrum && !entryData.work_package_id && entryData.subject) {
                 const subjectKey = `${entryData.project}|${entryData.subject}`;
                 if (sameDateSubjects.has(subjectKey)) {
+                    const firstOccurrence = sameDateSubjects.get(subjectKey);
                     sameDateDuplicates.push({
                         entryIndex,
                         subject: entryData.subject,
                         project: entryData.project,
-                        date: dateStr
+                        date: dateStr,
+                        firstHours: firstOccurrence.hours,
+                        duplicateHours: entryData.duration_hours
                     });
                 } else {
-                    sameDateSubjects.add(subjectKey);
+                    sameDateSubjects.set(subjectKey, {
+                        hours: entryData.duration_hours,
+                        index: entryIndex
+                    });
                 }
             }
 
@@ -256,14 +263,21 @@ export class WorkLogParser {
             }
         }
 
-        // If same-date duplicates found, throw error
+        // If same-date duplicates found, throw error with detailed information
         if (sameDateDuplicates.length > 0) {
-            const duplicateMessages = sameDateDuplicates.map(dup =>
-                `  - "${dup.subject}" in project "${dup.project}" (entry ${dup.entryIndex + 1})`
-            ).join('\n');
-            throw new Error(`Duplicate subjects found within the same date (${dateStr}):\n${duplicateMessages}\n\nPlease use unique subjects for entries on the same date, or add a work_package_id to reuse an existing work package.`);
+            console.error(`\n🔴 VALIDATION FAILED: Same-date duplicates detected on ${dateStr}`);
+            sameDateDuplicates.forEach(dup => {
+                console.error(`  ❌ "${dup.subject}" (${dup.project})`);
+                console.error(`     First entry: ${dup.firstHours}h, Duplicate entry: ${dup.duplicateHours}h`);
+                console.error(`     Total if combined: ${dup.firstHours + dup.duplicateHours}h`);
+            });
+
+            const duplicateMessages = sameDateDuplicates.map(dup => `❌ <strong>"${dup.subject}"</strong> (${dup.project})<br>&nbsp;&nbsp;&nbsp;&nbsp;First entry: ${dup.firstHours}h, Duplicate entry: ${dup.duplicateHours}h<br>&nbsp;&nbsp;&nbsp;&nbsp;💡 Total if combined: <strong>${dup.firstHours + dup.duplicateHours}h</strong>`).join('<br><br>');
+
+            throw new Error(`🔴 <strong>Duplicate subjects found on the same date (${dateStr})</strong><br><br>${duplicateMessages}<br><br>⚠️ <strong>Fix Options:</strong><br>1. Combine into one entry with total hours<br>2. Use different subjects to distinguish tasks<br>3. Add work_package_id if logging to existing work package`);
         }
 
+        console.log(`✅ Date ${dateStr}: Successfully parsed ${timeEntries.length} entries`);
         return timeEntries;
     }
 
@@ -444,11 +458,13 @@ export class WorkLogParser {
         const taskSubject = subject || description;
 
         if (!project || !taskSubject) {
+            console.warn('⚠️ Skipping entry: missing project or subject');
             return null;
         }
 
         const durationHours = this.parseDurationHours(entryData.duration_hours);
         if (durationHours === 0) {
+            console.warn(`⚠️ Skipping entry "${taskSubject}" (${project}): duration is 0 hours`);
             return null;
         }
 
@@ -465,7 +481,7 @@ export class WorkLogParser {
         const endTime = new Date(actualStartTime.getTime() + durationHours * 60 * 60 * 1000);
         const taskActivity = activity || this.determineActivity(taskSubject);
 
-        return {
+        const parsedEntry = {
             project,
             work_package_id: work_package_id,
             project_id: this.projectMappings ? this.projectMappings[project] : null,
@@ -479,10 +495,14 @@ export class WorkLogParser {
             is_scrum: isScrum,
             entry_date: entryDate
         };
+
+        console.log(`✅ Parsed entry: "${taskSubject}" (${project}) - ${durationHours}h`);
+        return parsedEntry;
     }
 
     parseDurationHours(durationHours) {
         if (!durationHours) {
+            console.warn('⚠️ Entry has 0 or null duration_hours, will be skipped');
             return 0;
         }
 

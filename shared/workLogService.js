@@ -50,6 +50,8 @@ export class WorkLogService {
         const serverDuplicates = this.extractServerDuplicates(allDateEntries);
         this.workLogEntries = this.extractWorkLogEntries(allDateEntries);
 
+        console.log(`📊 File processing complete: ${this.workLogEntries.length} total entries from ${Object.keys(allDateEntries).length} date(s)`);
+
         return {
             entries: this.workLogEntries,
             dateCount: Object.keys(allDateEntries).length,
@@ -67,9 +69,56 @@ export class WorkLogService {
     extractWorkLogEntries(allDateEntries) {
         const entries = [];
         for (const [date, dateEntries] of Object.entries(allDateEntries)) {
+            console.log(`📅 Date ${date}: ${dateEntries.length} entries`);
             entries.push(...dateEntries);
         }
+        console.log(`✅ Total entries extracted: ${entries.length}`);
+
+        // Detect and log different-date duplicates for information
+        this.detectDifferentDateDuplicates(entries);
+
         return entries;
+    }
+
+    detectDifferentDateDuplicates(entries) {
+        const subjectTracker = {};
+
+        entries.forEach(entry => {
+            // Skip SCRUM entries and those with work_package_id
+            if (entry.is_scrum || entry.work_package_id) return;
+
+            const key = `${entry.project_id}|${entry.subject}`;
+
+            if (!subjectTracker[key]) {
+                subjectTracker[key] = {
+                    project: entry.project,
+                    subject: entry.subject,
+                    dates: {}
+                };
+            }
+
+            const date = entry.entry_date;
+            if (!subjectTracker[key].dates[date]) {
+                subjectTracker[key].dates[date] = 0;
+            }
+            subjectTracker[key].dates[date] += entry.hours || entry.duration_hours || 0;
+        });
+
+        // Log duplicates across different dates
+        const duplicates = Object.values(subjectTracker).filter(item => Object.keys(item.dates).length > 1);
+
+        if (duplicates.length > 0) {
+            console.log('\n🟡 Same subject/task on different dates (hours aggregated per date):');
+            duplicates.forEach(dup => {
+                console.log(`\n📌 ${dup.project} | "${dup.subject}"`);
+                Object.entries(dup.dates).forEach(([date, hours]) => {
+                    console.log(`   - ${date}: ${hours}h`);
+                });
+                const totalHours = Object.values(dup.dates).reduce((sum, h) => sum + h, 0);
+                console.log(`   📊 Total: ${totalHours}h across ${Object.keys(dup.dates).length} dates`);
+            });
+            console.log('');
+        }
     }
 
     async performWorkPackageAnalysis() {
@@ -98,18 +147,10 @@ export class WorkLogService {
     }
 
     getUniqueEntries() {
-        const seenEntries = new Set();
-        const uniqueEntries = [];
-
-        for (const entry of this.workLogEntries) {
-            const entryKey = `${entry.project}|${entry.subject}|${entry.hours || entry.duration_hours}`;
-            if (!seenEntries.has(entryKey)) {
-                seenEntries.add(entryKey);
-                uniqueEntries.push(entry);
-            }
-        }
-
-        return uniqueEntries;
+        // Return all entries - no deduplication needed here
+        // Each entry represents a distinct time log, even if subjects are similar
+        console.log(`📋 Total work log entries to analyze: ${this.workLogEntries.length}`);
+        return this.workLogEntries;
     }
 
     async categorizeEntry(entry, analysisResult) {
@@ -317,8 +358,9 @@ export class WorkLogService {
     validateEntryTimes(entry, currentTime) {
         const endTime = entry.calculated_end_time;
 
-        if (!currentTime || currentTime === 'Invalid Time' || !endTime || endTime === 'Invalid Time') {
-            console.warn('Time calculation issue:', {
+        // Only warn if times are explicitly marked as invalid, not if they're missing during calculation
+        if (currentTime === 'Invalid Time' || endTime === 'Invalid Time') {
+            console.warn('⚠️ Invalid time calculation:', {
                 entry: entry.subject,
                 hours: entry.hours || entry.duration_hours,
                 calculatedStart: currentTime,
