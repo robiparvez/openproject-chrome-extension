@@ -514,7 +514,16 @@ export class WorkLogService {
         }
     }
 
-    generateSmartComment(subject, activity, durationHours) {
+    async generateSmartComment(subject, activity, durationHours) {
+        // Since free AI APIs are unreliable (returning 410 errors), using fallback
+        return this.generateSmartCommentFallback(subject, activity, durationHours);
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    generateSmartCommentFallback(subject, activity, durationHours) {
         const subjectLower = subject.toLowerCase();
 
         const templates = {
@@ -544,10 +553,14 @@ export class WorkLogService {
 
         let comment = selectedTemplates[Math.floor(Math.random() * selectedTemplates.length)];
 
+        const longDurationSuffixes = ['. Comprehensive work completed with thorough testing.', '. Extensive development and testing completed.', '. Full implementation finished with quality assurance.', '. Detailed work accomplished with comprehensive review.'];
+
+        const mediumDurationSuffixes = ['. Task completed successfully.', '. Work finished as planned.', '. Implementation completed.', '. Successfully delivered the feature.'];
+
         if (durationHours >= 4) {
-            comment += '. Comprehensive work completed with thorough testing.';
+            comment += longDurationSuffixes[Math.floor(Math.random() * longDurationSuffixes.length)];
         } else if (durationHours >= 2) {
-            comment += '. Task completed successfully.';
+            comment += mediumDurationSuffixes[Math.floor(Math.random() * mediumDurationSuffixes.length)];
         }
 
         return comment;

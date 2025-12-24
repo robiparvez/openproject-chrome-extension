@@ -396,7 +396,7 @@ export class WorkLogParser {
     }
 
     validateRequiredFields(entryData, prefix, errors) {
-        const requiredFields = ['project', 'subject', 'duration_hours', 'activity', 'is_scrum'];
+        const requiredFields = ['project', 'subject', 'duration_hours', 'activity'];
 
         for (const field of requiredFields) {
             if (!(field in entryData)) {
@@ -468,8 +468,8 @@ export class WorkLogParser {
             return null;
         }
 
-        const isScrum = !!is_scrum;
-        const breakHours = entryData.break_hours || 0;
+        const isScrum = entryData.is_scrum !== undefined ? !!entryData.is_scrum : false;
+        const breakHours = entryData.break_hours !== undefined ? entryData.break_hours : null;
         const breakMinutes = breakHours ? Math.round(breakHours * 60) : 0;
 
         const actualStartTime = this.calculateStartTime(isScrum, startTime, breakMinutes);
@@ -483,7 +483,7 @@ export class WorkLogParser {
 
         const parsedEntry = {
             project,
-            work_package_id: work_package_id,
+            work_package_id: entryData.work_package_id !== undefined ? entryData.work_package_id : null,
             project_id: this.projectMappings ? this.projectMappings[project] : null,
             subject: taskSubject,
             activity: taskActivity,

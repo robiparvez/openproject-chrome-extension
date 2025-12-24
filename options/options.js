@@ -536,7 +536,6 @@ class IntegratedOptionsController {
             setTimeout(() => {
                 this.goToStep(3);
             }, 1500);
-
         } catch (error) {
             this.hideUploadLoader();
             this.handleFileUploadError(error);
@@ -1391,14 +1390,15 @@ class IntegratedOptionsController {
                     ];
                 }
                 let commentsHtml = '';
-                newEntries.forEach((entry, index) => {
+                for (let index = 0; index < newEntries.length; index++) {
+                    const entry = newEntries[index];
                     let statusOptions = '';
                     statuses.forEach(status => {
                         const isDefault = status.name.toLowerCase().includes('progress') || status.name.toLowerCase().includes('in progress');
                         const selected = isDefault ? 'selected' : '';
                         statusOptions += `<option value="${status.id}" ${selected}>${status.name}</option>`;
                     });
-                    const generatedComment = this.workLogService.generateSmartComment(entry.subject, entry.activity, entry.duration_hours);
+                    const generatedComment = await this.workLogService.generateSmartComment(entry.subject, entry.activity, entry.duration_hours);
                     commentsHtml += `
                         <div class="form-group" style="border: 1px solid #e0f2f1; border-radius: 12px; padding: 24px; margin-bottom: 20px; background: linear-gradient(135deg, #f8fffe 0%, #e0f2f1 100%); box-shadow: 0 2px 8px rgba(0, 121, 107, 0.08);">
                             <div style="margin-bottom: 20px;">
@@ -1439,7 +1439,7 @@ class IntegratedOptionsController {
                             </div>
                         </div>
                     `;
-                });
+                }
                 this.commentInputs.innerHTML = commentsHtml;
                 this.setupEventListeners();
                 this.setupRegenerateCommentListeners(newEntries);
@@ -1495,12 +1495,12 @@ class IntegratedOptionsController {
     setupRegenerateCommentListeners(newEntries) {
         const regenerateIcons = document.querySelectorAll('.regenerate-comment');
         regenerateIcons.forEach(icon => {
-            icon.addEventListener('click', e => {
+            icon.addEventListener('click', async e => {
                 const index = parseInt(e.target.dataset.index);
                 const entry = newEntries[index];
                 const commentTextarea = document.getElementById(`comment_${index}`);
                 if (entry && commentTextarea) {
-                    const newComment = this.workLogService.generateSmartComment(entry.subject, entry.activity, entry.duration_hours);
+                    const newComment = await this.workLogService.generateSmartComment(entry.subject, entry.activity, entry.duration_hours);
                     commentTextarea.value = newComment;
                     icon.style.color = '#2196f3';
                     icon.textContent = '✓';
