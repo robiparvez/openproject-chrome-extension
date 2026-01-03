@@ -14,7 +14,7 @@ Lightweight Chrome extension (plus optional Python scripts) to upload structured
 
 1. Open `chrome://extensions/`, enable Developer mode and choose *Load unpacked* → select this repo
 2. Open Options and add your OpenProject API token (Step 1)
-3. Upload your JSON (Step 2), confirm per-date start times, then review (Step 3)
+3. Download sample JSON or upload your own (Step 2), confirm per-date start times, then review (Step 3)
 
 ## Minimal JSON example
 
@@ -59,28 +59,24 @@ Lightweight Chrome extension (plus optional Python scripts) to upload structured
 - Core code: `shared/parser.js`, `shared/workLogService.js`, `shared/apiClient.js`
 - UI: `options/` (stepper, upload, toasts)
 - Background: `background/service-worker.js`
-- Tests & diagnostics: `script/test_api.py`, `analyze_duplicates.js`
+- Tests & diagnostics: `script/test_api.py`
 
 ---
 For more details, inspect the source files in this repository.
 
-### Development Features
+### Python Script Usage
 
-**Chrome Extension:**
+1. Copy `script/config.template.py` to `script/config.py`
+2. Fill in your OpenProject credentials and settings
+3. Run `python script/test_api.py` to validate configuration and permissions
+4. Use the script to retrieve current project mappings from your OpenProject instance
 
-- Real-time validation and user feedback
-- Progressive enhancement with stepper workflow
-- Responsive design for different screen sizes
-- Accessibility features (ARIA labels, keyboard navigation)
-- Error boundaries and graceful degradation
+The script tests:
 
-**Python Script:**
-
-- Interactive CLI with user prompts
-- Comprehensive API testing and diagnostics
-- Configuration template system
-- Detailed logging and error reporting
-- UV-based dependency management
+- API connectivity and authentication
+- Access to configured projects
+- Permissions for creating work packages and time entries
+- Validity of user IDs for accountable/assignee fields
 
 ## 🔗 Related Resources
 
