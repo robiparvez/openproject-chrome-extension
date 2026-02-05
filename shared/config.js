@@ -22,7 +22,8 @@ export const PROJECT_MAPPINGS = {
     IDCOL: 64,
     HRIS: 63,
     'NEXT-GENERATION-PROVISING-SYSTEM-NGPS': 41,
-    'IOT-AND-FWA': 21
+    'IOT-AND-FWA': 21,
+    'FSD-REVAMP': 158
 };
 
 // Activity mappings are fixed and match log.py

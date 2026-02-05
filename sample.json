@@ -1,219 +1,204 @@
 {
     "logs": [
         {
-            "date": "nov-23-2025",
+            "date": "jan-11-2026",
             "entries": [
                 {
-                    "project": "BD-TICKET",
-                    "subject": "Conducted requirement analysis for the Campaign Management module",
-                    "break_hours": null,
-                    "duration_hours": 2,
-                    "activity": "Development",
-                    "is_scrum": false,
-                    "work_package_id": null
+                    "project": "FSD-REVAMP",
+                    "subject": "Update .gitignore to include Copilot instructions and Adminer files",
+                    "duration_hours": 1.0,
+                    "activity": "Development"
                 },
                 {
-                    "project": "IDCOL",
-                    "subject": "Provided operational support for ongoing production activities",
-                    "break_hours": 1,
-                    "duration_hours": 5,
-                    "activity": "Support",
-                    "is_scrum": false,
-                    "work_package_id": null
-                }
-            ]
-        },
-        {
-            "date": "nov-24-2025",
-            "entries": [
+                    "project": "IOT-AND-FWA",
+                    "subject": "Tasks Discussion & Meeting - SSO implementation, MFA (OTP-SMS & Email) implementation, password expiry & forgot password",
+                    "break_hours": 0.5,
+                    "duration_hours": 3.5,
+                    "activity": "Meeting"
+                },
                 {
                     "project": "COMMON-SLASH-GENERAL-PURPOSE-AND-MEETINGS-HR-ACTIVITY",
-                    "subject": "Performed estimation activities for Walton requirements",
-                    "break_hours": null,
-                    "duration_hours": 2,
-                    "activity": "Meeting",
-                    "is_scrum": false,
-                    "work_package_id": null
+                    "subject": "OpenProject time logging - Jan 2026",
+                    "break_hours": 0.75,
+                    "duration_hours": 2.0,
+                    "activity": "Management",
+                    "work_package_id": 15686
+                }
+            ]
+        },
+        {
+            "date": "jan-12-2026",
+            "entries": [
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "Add 'Forget Password' functionality with routes, controller, and view",
+                    "duration_hours": 1.0,
+                    "activity": "Development"
                 },
                 {
-                    "project": "BD-TICKET",
-                    "subject": "Held a Campaign Management requirement analysis meeting with R-venture",
-                    "break_hours": 1,
-                    "duration_hours": 5,
-                    "activity": "Meeting",
-                    "is_scrum": false,
-                    "work_package_id": null
-                }
-            ]
-        },
-        {
-            "date": "nov-25-2025",
-            "entries": [
-                {
-                    "project": "COMMON-SLASH-GENERAL-PURPOSE-AND-MEETINGS-HR-ACTIVITY",
-                    "subject": "Performed estimation activities for Walton requirements",
-                    "break_hours": null,
-                    "duration_hours": 7,
-                    "activity": "Meeting",
-                    "is_scrum": false,
-                    "work_package_id": null
-                }
-            ]
-        },
-        {
-            "date": "nov-26-2025",
-            "entries": [
-                {
-                    "project": "BD-TICKET",
-                    "subject": "Initiated development of the Campaign Management module",
-                    "break_hours": null,
-                    "duration_hours": 6,
-                    "activity": "Development",
-                    "is_scrum": false,
-                    "work_package_id": null
-                }
-            ]
-        },
-        {
-            "date": "nov-27-2025",
-            "entries": [
-                {
-                    "project": "BD-TICKET",
-                    "subject": "Revamped the UI for the Campaign Management module",
-                    "break_hours": null,
-                    "duration_hours": 5,
-                    "activity": "Development",
-                    "is_scrum": false,
-                    "work_package_id": null
-                },
-                {
-                    "project": "IDCOL",
-                    "subject": "Provided operational support for ongoing production activities",
-                    "break_hours": 1,
-                    "duration_hours": 2,
-                    "activity": "Support",
-                    "is_scrum": false,
-                    "work_package_id": null
-                }
-            ]
-        },
-        {
-            "date": "nov-29-2025",
-            "entries": [
-                {
-                    "project": "BD-TICKET",
-                    "subject": "Continued development activities related to the Campaign Management module",
-                    "break_hours": null,
-                    "duration_hours": 4,
-                    "activity": "Development",
-                    "is_scrum": false,
-                    "work_package_id": null
-                },
-                {
-                    "project": "IDCOL",
-                    "subject": "Provided operational support for ongoing production activities",
-                    "break_hours": 1,
-                    "duration_hours": 3,
-                    "activity": "Support",
-                    "is_scrum": false,
-                    "work_package_id": null
-                }
-            ]
-        },
-        {
-            "date": "nov-30-2025",
-            "entries": [
-                {
-                    "project": "BD-TICKET",
-                    "subject": "Performed UI/UX revamp activities for the Campaign Management module",
-                    "break_hours": null,
-                    "duration_hours": 6.5,
-                    "activity": "Development",
-                    "is_scrum": false,
-                    "work_package_id": null
-                },
-                {
-                    "project": "SEBL",
-                    "subject": "Provided operational support to resolve issues related to missing remarks in the interview evaluation export",
-                    "break_hours": 1,
-                    "duration_hours": 2.5,
-                    "activity": "Support",
-                    "is_scrum": false,
-                    "work_package_id": null
-                }
-            ]
-        },
-        {
-            "date": "dec-01-2025",
-            "entries": [
-                {
-                    "project": "BD-TICKET",
-                    "subject": "Conducted a demo session showcasing the Campaign Management module. Analyzed updated feedback and refined requirements. Performed bug fixes related to the Campaign Management module",
-                    "break_hours": null,
-                    "duration_hours": 7,
-                    "activity": "Development",
-                    "is_scrum": false,
-                    "work_package_id": null
-                }
-            ]
-        },
-        {
-            "date": "dec-02-2025",
-            "entries": [
-                {
-                    "project": "BD-TICKET",
-                    "subject": "Developed frontend components for the revamped Campaign Management UI/UX",
-                    "break_hours": null,
-                    "duration_hours": 7,
-                    "activity": "Development",
-                    "is_scrum": false,
-                    "work_package_id": null
-                }
-            ]
-        },
-        {
-            "date": "dec-03-2025",
-            "entries": [
-                {
-                    "project": "BD-TICKET",
-                    "subject": "Implemented backend changes required for the Campaign Management UI/UX revamp",
-                    "break_hours": null,
-                    "duration_hours": 6.5,
-                    "activity": "Development",
-                    "is_scrum": false,
-                    "work_package_id": null
-                },
-                {
-                    "project": "IDCOL",
-                    "subject": "Provided operational support for ongoing production activities",
-                    "break_hours": 1,
+                    "project": "IOT-AND-FWA",
+                    "subject": "Updated app\\Views\\change_password.php",
+                    "break_hours": 0.33,
                     "duration_hours": 0.5,
-                    "activity": "Support",
-                    "is_scrum": false,
-                    "work_package_id": null
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "Refactor change password and login view templates for improved readability and consistency",
+                    "break_hours": 0.33,
+                    "duration_hours": 2.0,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "Reverted 4 user related files as per pre-prod",
+                    "break_hours": 0.33,
+                    "duration_hours": 1.0,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "Refactor change_password_byUser method to improve parameter order and enhance password validation logic",
+                    "break_hours": 0.33,
+                    "duration_hours": 2.5,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "chore: stop tracking .env (ignored)",
+                    "duration_hours": 0.25,
+                    "activity": "Development"
                 }
             ]
         },
         {
-            "date": "dec-04-2025",
+            "date": "jan-13-2026",
             "entries": [
                 {
-                    "project": "BD-TICKET",
-                    "subject": "Presented the updated frontend and backend implementation to the team. Incorporated team feedback and analyzed updates to the requirement document",
-                    "break_hours": null,
-                    "duration_hours": 6.5,
-                    "activity": "Development",
-                    "is_scrum": false,
-                    "work_package_id": null
+                    "project": "IOT-AND-FWA",
+                    "subject": "Implement Multi-Factor Authentication (MFA) with OTP verification process, including routes, models, and views",
+                    "duration_hours": 2.5,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "feat: Implement Azure AD SSO integration",
+                    "break_hours": 0.5,
+                    "duration_hours": 1.5,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "Implement password expiration system with comprehensive logging and SSO exemptions",
+                    "break_hours": 0.5,
+                    "duration_hours": 1.5,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "Refactor password change flow and enhance success messaging",
+                    "break_hours": 0.5,
+                    "duration_hours": 0.5,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "feat: Enhance forgot password flow with OTP verification and email notifications",
+                    "duration_hours": 0.5,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "feat: Add resend OTP functionality to forgot password flow",
+                    "duration_hours": 0.5,
+                    "activity": "Development"
+                }
+            ]
+        },
+        {
+            "date": "jan-14-2026",
+            "entries": [
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "feat: Add Test Email functionality with CLI command and API routes",
+                    "duration_hours": 2.5,
+                    "activity": "Development"
+                },
+                {
+                    "project": "JBL",
+                    "subject": "Intestigating and providing operational support for recrruitment already joined employee",
+                    "break_hours": 0.75,
+                    "duration_hours": 1.5,
+                    "activity": "Support"
+                },
+                {
+                    "project": "FSD-REVAMP",
+                    "subject": "Deleted redundant adminer-4.8.1-mysql-en.php file",
+                    "break_hours": 0.75,
+                    "duration_hours": 0.5,
+                    "activity": "Development"
+                },
+                {
+                    "project": "FSD-REVAMP",
+                    "subject": "Refactor DataTable queries to use latest('id') for consistent ordering",
+                    "duration_hours": 1.0,
+                    "activity": "Development"
+                },
+                {
+                    "project": "FSD-REVAMP",
+                    "subject": "Enhance vehicle requisition ticket assignment logic to include active load distributions and quota management",
+                    "duration_hours": 1.0,
+                    "activity": "Development"
+                },
+                {
+                    "project": "COMMON-SLASH-RFS-AND-DEMO-SUPPORT",
+                    "subject": "Discussion and instructions for updated Demo project setup with Devops",
+                    "duration_hours": 1.0,
+                    "activity": "Meeting"
+                }
+            ]
+        },
+        {
+            "date": "jan-15-2026",
+            "entries": [
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "feat: Update SMTP credentials to use latest Robi server (smtp.robi.com.bd:25)",
+                    "duration_hours": 1.0,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "fix: Disable TLS/SSL encryption for SMTP to resolve STARTTLS error with Exchange server",
+                    "duration_hours": 0.5,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "fix: Update SMTP credentials to empty values for security reasons",
+                    "duration_hours": 1.0,
+                    "activity": "Development"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "Azure AD Application Integration Form - analysis, discussion and submission",
+                    "duration_hours": 0.5,
+                    "activity": "Meeting"
+                },
+                {
+                    "project": "COMMON-SLASH-RFS-AND-DEMO-SUPPORT",
+                    "subject": "Update Demo project setup with Devops for AIBL demo",
+                    "break_hours": 0.25,
+                    "duration_hours": 3.0,
+                    "activity": "Management"
                 },
                 {
                     "project": "COMMON-SLASH-GENERAL-PURPOSE-AND-MEETINGS-HR-ACTIVITY",
-                    "subject": "Performed requirement analysis for Brac Bank",
-                    "break_hours": null,
-                    "duration_hours": 1,
-                    "activity": "Meeting",
-                    "is_scrum": false,
-                    "work_package_id": null
+                    "subject": "OpenProject time logging - Jan 2026",
+                    "break_hours": 0.75,
+                    "duration_hours": 1.0,
+                    "activity": "Management",
+                    "work_package_id": 15686
                 }
             ]
         }
