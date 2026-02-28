@@ -353,6 +353,11 @@ class IntegratedOptionsController {
                 return;
             }
 
+            if (accessTokenValue.length < 10) {
+                this.showToaster('API token seems too short. Please verify you copied the entire token', 'error', 0, true);
+                return;
+            }
+
             const basicConfig = this.createBasicConfig(accessTokenValue);
 
             console.log('Saving config:', {
@@ -401,6 +406,12 @@ class IntegratedOptionsController {
             const logger = new OpenProjectTimeLogger();
             await logger.initialize();
 
+            // Test connection first
+            const testResult = await logger.testConnection();
+            if (!testResult.success) {
+                throw new Error(testResult.error || 'Failed to authenticate with OpenProject. Check your API token.');
+            }
+
             const [user, projects] = await Promise.all([logger.getCurrentUser(), logger.getProjects()]);
 
             const projectMappings = this.buildProjectMappings(projects);
@@ -410,10 +421,18 @@ class IntegratedOptionsController {
             await updateProjectMappings(projectMappings);
 
             this.config = updatedConfig;
-            this.showToaster(`Configuration saved successfully! Authenticated as: ${user.name} | ${projects.length} projects loaded`, 'success');
+            this.showToaster(`✅ Connected successfully! User: ${user.name} | ${projects.length} projects available`, 'success');
             this.completeStep(1);
         } catch (error) {
-            this.showToaster(`Configuration saved but connection failed: ${error.message}`, 'error', 0, true);
+            console.error('Connection test failed:', error);
+            const errorMsg = error.message || 'Unknown error';
+            if (errorMsg.includes('Invalid API token') || errorMsg.includes('Unauthorized')) {
+                this.showToaster('❌ Invalid API token. Please verify your token and try again.', 'error', 0, true);
+            } else if (errorMsg.includes('Connection refused')) {
+                this.showToaster('❌ Cannot reach OpenProject server. Check your base URL and internet connection.', 'error', 0, true);
+            } else {
+                this.showToaster(`❌ Connection failed: ${errorMsg}`, 'error', 0, true);
+            }
         }
     }
 
@@ -804,6 +823,10 @@ class IntegratedOptionsController {
             </div>
         `;
         this.analysisSummary.insertAdjacentHTML('afterbegin', promptHtml);
+        // Hide "Process All Entries" button when time picker is visible
+        if (this.processBtn) {
+            this.processBtn.style.display = 'none';
+        }
         const confirmBtn = document.getElementById('confirmStartTimeBtn');
         if (confirmBtn) {
             confirmBtn.addEventListener('click', () => {
@@ -847,6 +870,10 @@ class IntegratedOptionsController {
         const targetDate = startTimePrompt ? startTimePrompt.getAttribute('data-entry-date') : null;
         this.workLogService.setStartTimeForFirstEntry(startTime, targetDate);
         document.getElementById('startTimePrompt')?.remove();
+        // Show "Process All Entries" button again when time picker is hidden
+        if (this.processBtn) {
+            this.processBtn.style.display = 'inline-block';
+        }
         this.showAnalysisLoader();
         setTimeout(() => {
             const validationIssues = this.workLogService.calculateAllTimes();
@@ -925,7 +952,7 @@ class IntegratedOptionsController {
                                 <span style="font-weight: 700; color: #212529; font-size: 15px;">${dateDisplay}</span>
                             </div>
                             <div style="background: #007bff; color: white; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,123,255,0.3);">
-                                Total: ${dateTotal}h
+                                Total: ${dateTotal.toFixed(2)}h
                             </div>
                         </div>
                     </div>
@@ -939,7 +966,7 @@ class IntegratedOptionsController {
                                 <span style="font-weight: 700; color: #212529; font-size: 15px;">${dateDisplay}</span>
                             </div>
                             <div style="background: #007bff; color: white; padding: 4px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; box-shadow: 0 2px 4px rgba(0,123,255,0.3);">
-                                Total: ${dateTotal}h
+                                Total: ${dateTotal.toFixed(2)}h
                             </div>
                         </div>
                     </div>
@@ -982,7 +1009,7 @@ class IntegratedOptionsController {
                             <span style="font-weight: 700; font-size: 16px;">Grand Total (${sortedDates.length} days)</span>
                         </div>
                         <div style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-weight: 700; font-size: 16px; backdrop-filter: blur(10px);">
-                            ${grandTotal}h
+                            ${grandTotal.toFixed(2)}h
                         </div>
                     </div>
                 </div>

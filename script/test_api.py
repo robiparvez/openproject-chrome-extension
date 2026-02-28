@@ -7,18 +7,27 @@ the configuration settings in config.py.
 """
 
 import requests
-from requests.auth import HTTPBasicAuth
-import json
 from config import (
     CONFIG,
     PROJECT_MAPPINGS,
 )
+from requests.auth import HTTPBasicAuth
 
 
 def test_api_connection():
     """Test basic API connectivity and authentication."""
     print("\n🔗 Testing OpenProject API Connection...")
     print(f"\nBase URL: {CONFIG['base_url']}")
+    print(
+        f"API Token: {CONFIG['api_token'][:10]}..."
+        if CONFIG["api_token"]
+        else "API Token: [NOT SET]"
+    )
+
+    if not CONFIG["api_token"]:
+        print("\n❌ API Token is not configured!")
+        print("   Set API_TOKEN in config.py and try again")
+        return None
 
     try:
         session = requests.Session()
@@ -29,38 +38,58 @@ def test_api_connection():
 
         # Test basic connectivity
         url = f"{CONFIG['base_url'].rstrip('/')}/api/v3/users/me"
+        print(f"\n📤 Sending request to: {url}")
         response = session.get(url, timeout=10)
+
+        print(f"📥 Response Status: {response.status_code}")
 
         if response.status_code == 200:
             user_data = response.json()
-            print(f"\n✅ API Connection Successful!")
+            print("\n✅ API Connection Successful!")
             print(f"   Authenticated as: {user_data.get('name', 'Unknown')}")
             print(f"   User ID: {user_data.get('id', 'Unknown')}")
             print(f"   Email: {user_data.get('email', 'Unknown')}")
             return session
+        elif response.status_code == 401:
+            print("\n❌ Authentication Failed - Invalid API Token!")
+            print(f"   Status Code: {response.status_code}")
+            print(f"   Response: {response.text[:200]}...")
+            print("\n💡 Troubleshooting:")
+            print("   1. Verify your API token in config.py")
+            print("   2. Ensure the token has not expired")
+            print("   3. Check if you have 'API' scope enabled in OpenProject")
+            return None
         else:
-            print(f"❌ Authentication Failed!")
+            print("\n❌ Authentication Failed!")
             print(f"   Status Code: {response.status_code}")
             print(f"   Response: {response.text[:200]}...")
             return None
 
-    except requests.exceptions.ConnectionError:
-        print(f"❌ Connection Error!")
+    except requests.exceptions.ConnectionError as e:
+        print("\n❌ Connection Error!")
         print(f"   Could not connect to {CONFIG['base_url']}")
-        print(f"   Check your internet connection and base URL")
+        print(f"   Error: {str(e)}")
+        print("\n💡 Troubleshooting:")
+        print("   1. Check your internet connection")
+        print("   2. Verify the base URL is correct in config.py")
+        print("   3. Ensure the OpenProject server is running and accessible")
         return None
     except requests.exceptions.Timeout:
-        print(f"❌ Timeout Error!")
-        print(f"   Request timed out after 10 seconds")
+        print("\n❌ Timeout Error!")
+        print("   Request timed out after 10 seconds")
+        print("\n💡 Troubleshooting:")
+        print("   1. Check your internet connection")
+        print("   2. Verify the OpenProject server is responding")
+        print("   3. Try increasing timeout if server is slow")
         return None
     except Exception as e:
-        print(f"❌ Unexpected Error: {e}")
+        print(f"\n❌ Unexpected Error: {e}")
         return None
 
 
 def test_projects(session):
     """Test access to configured projects."""
-    print(f"\n📁 Testing Project Access...")
+    print("\n📁 Testing Project Access...")
 
     project_results = {}
 
@@ -96,7 +125,7 @@ def test_projects(session):
 
 def test_work_package_creation(session):
     """Test work package creation permissions."""
-    print(f"\n📋 Testing Work Package Creation Permissions...")
+    print("\n📋 Testing Work Package Creation Permissions...")
 
     # Test with the first available project
     test_project_id = None
@@ -139,7 +168,7 @@ def test_work_package_creation(session):
 
 def test_time_entry_creation(session):
     """Test time entry creation permissions."""
-    print(f"\n⏰ Testing Time Entry Creation Permissions...")
+    print("\n⏰ Testing Time Entry Creation Permissions...")
 
     try:
         # Test time entry creation endpoint without actually creating
@@ -151,10 +180,10 @@ def test_time_entry_creation(session):
             201,
             422,
         ]:  # 422 is validation error, which means endpoint works
-            print(f"✅ Time entry creation allowed")
+            print("✅ Time entry creation allowed")
             return True
         elif response.status_code == 403:
-            print(f"❌ Time entry creation denied")
+            print("❌ Time entry creation denied")
             return False
         else:
             print(
@@ -169,7 +198,7 @@ def test_time_entry_creation(session):
 
 def get_project_mappings(session):
     """Retrieve all available projects from OpenProject API."""
-    print(f"\n🗺️  Retrieving Project Mappings from OpenProject...")
+    print("\n🗺️  Retrieving Project Mappings from OpenProject...")
 
     try:
         url = f"{CONFIG['base_url'].rstrip('/')}/api/v3/projects"
@@ -188,7 +217,6 @@ def get_project_mappings(session):
                 project_id = project.get("id")
                 project_name = project.get("name", "Unknown")
                 project_identifier = project.get("identifier", "Unknown")
-                status = project.get("status", {}).get("name", "Unknown")
 
                 print(f"🔹 {project_name}")
                 print(f"   ID: {project_id}")
@@ -226,7 +254,7 @@ def get_project_mappings(session):
 
 def test_user_permissions(session):
     """Test user permissions and validate user IDs."""
-    print(f"\n👤 Testing User Permissions...")
+    print("\n👤 Testing User Permissions...")
 
     accountable_id = CONFIG.get("accountable_user_id")
     assignee_id = CONFIG.get("assignee_user_id")
@@ -277,7 +305,7 @@ def main():
     project_results = test_projects(session)
 
     # Get available project mappings from API
-    available_mappings = get_project_mappings(session)
+    get_project_mappings(session)
 
     test_work_package_creation(session)
 
@@ -286,22 +314,22 @@ def main():
     test_user_permissions(session)
 
     # Summary
-    print(f"\n📊 Test Summary")
+    print("\n📊 Test Summary")
     print("=" * 50)
 
     accessible_projects = sum(1 for result in project_results.values() if result)
     total_projects = len(project_results)
 
-    print(f"✅ API Connection: Working")
+    print("✅ API Connection: Working")
 
     if accessible_projects < total_projects:
-        print(f"\n⚠️  Some projects are not accessible:")
+        print("\n⚠️  Some projects are not accessible:")
         for project_name, accessible in project_results.items():
             if not accessible:
                 print(f"   - {project_name} (ID: {PROJECT_MAPPINGS[project_name]})")
-        print(f"\nCheck permissions or update project IDs in config.py")
+        print("\nCheck permissions or update project IDs in config.py")
 
-    print(f"\n🎉 API test completed!")
+    print("\n🎉 API test completed!")
 
     return True
 

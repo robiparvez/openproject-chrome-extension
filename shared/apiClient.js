@@ -21,6 +21,10 @@ export class OpenProjectTimeLogger {
     }
 
     async _makeRequest(endpoint, options = {}) {
+        if (!this.accessToken || !this.baseUrl) {
+            throw new Error('API Token or Base URL not configured');
+        }
+
         const url = `${this.baseUrl}${endpoint}`;
         const headers = {
             'Content-Type': 'application/json',
@@ -33,8 +37,18 @@ export class OpenProjectTimeLogger {
         try {
             const response = await fetch(url, {
                 ...options,
-                headers: { ...headers, ...options.headers }
+                headers: { ...headers, ...options.headers },
+                credentials: 'omit',
+                mode: 'cors'
             });
+
+            if (response.status === 401) {
+                throw new Error('Unauthorized: Invalid API token or user credentials');
+            }
+
+            if (response.status === 403) {
+                throw new Error('Forbidden: You do not have permission to access this resource');
+            }
 
             if (!response.ok) {
                 const text = await response.text();
@@ -46,6 +60,9 @@ export class OpenProjectTimeLogger {
             }
 
             return response.json();
+        } catch (error) {
+            console.error('API Request Error:', error);
+            throw error;
         } finally {
             this.trackRequestEnd();
         }
