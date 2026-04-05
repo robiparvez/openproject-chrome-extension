@@ -1,0 +1,98 @@
+{
+    "logs": [
+        {
+            "date": "march-15-2026",
+            "entries": [
+                {
+                    "project": "ROBI-ALPHA",
+                    "subject": "Refactor CleanupDomainUserPasswords and ForgotPasswordController for improved readability and maintainability",
+                    "duration_hours": 1.92,
+                    "activity": "Development",
+                    "duration_text": "No Break, 50 mins"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "feat: Enhance session management with error message handling and improve query for lockout records",
+                    "duration_hours": 0.42,
+                    "activity": "Development",
+                    "duration_text": "15 mins, 2h 15mins"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "feat: Improve session management by handling error messages via cookies and updating login view for better message display",
+                    "duration_hours": 0.92,
+                    "activity": "Development",
+                    "duration_text": "30 mins, 1h 15mins"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "feat: Add ResetIsNewFlag command and improve user management forms with validation and message handling",
+                    "duration_hours": 2.91,
+                    "activity": "Development",
+                    "duration_text": "No Break, 1h 45 mins"
+                }
+            ]
+        },
+        {
+            "date": "april-04-2026",
+            "entries": [
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "fix: Add refresh stats functionality for upload results after redirect",
+                    "duration_hours": 1.38,
+                    "activity": "Development",
+                    "duration_text": "No Break, 45mins"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "Updated material-icons & bootstrap.bundle assets",
+                    "duration_hours": 0.78,
+                    "activity": "Development",
+                    "duration_text": "20mins, 45mins"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "fix: Resolve file path for bulk channel mapping refresh command",
+                    "duration_hours": 0.89,
+                    "activity": "Development",
+                    "duration_text": "20mins, 30mins"
+                },
+                {
+                    "project": "IOT-AND-FWA",
+                    "subject": "updated bulk channel mapping index",
+                    "duration_hours": 1.12,
+                    "activity": "Development",
+                    "duration_text": "20mins, 1hr"
+                },
+                {
+                    "project": "MFS",
+                    "subject": "feat: update environment configuration for UAT deployment",
+                    "duration_hours": 0.96,
+                    "activity": "Development",
+                    "duration_text": "10mins, 1hr 15 mins"
+                },
+                {
+                    "project": "MFS",
+                    "subject": "feat: Restore renderCounter logic and update shouldRender conditions in useMerchantChildrenTables hook",
+                    "duration_hours": 0.67,
+                    "activity": "Development",
+                    "duration_text": "10mins, 1hr 05 mins"
+                },
+                {
+                    "project": "MFS",
+                    "subject": "fix: disable head office rendering in useMerchantChildrenTables hook",
+                    "duration_hours": 0.88,
+                    "activity": "Development",
+                    "duration_text": "10mins, 45mins"
+                },
+                {
+                    "project": "MFS",
+                    "subject": "fix: update rendering logic for StatusBadge and merchant category handling in useMerchantChildrenTables hook",
+                    "duration_hours": 0.65,
+                    "activity": "Development",
+                    "duration_text": "10mins, 45mins"
+                }
+            ]
+        }
+    ]
+}

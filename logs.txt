@@ -1,0 +1,44 @@
+March 15, 2026 (6h 10 mins)
+------------------------------------------------------------------------------------------
+ROBI-ALPHA
+--------------------------------------
+Refactor CleanupDomainUserPasswords and ForgotPasswordController for improved readability and maintainability (No Break, 50 mins)
+
+IOT-AND-FWA
+--------------------------------------
+feat: Enhance session management with error message handling and improve query for lockout records (15 mins, 2h 15mins)
+feat: Improve session management by handling error messages via cookies and updating login view for better message display (30 mins, 1h 15mins)
+feat: Add ResetIsNewFlag command and improve user management forms with validation and message handling (No Break, 1h 45 mins)
+
+
+March 16, 2026 (0h 00 mins)
+------------------------------------------------------------------------------------------
+IOT-AND-FWA
+--------------------------------------
+Updated auth service for concurrent session (No Break, 1h 50 mins)
+
+
+April 2, 2026 (0h 00 mins)
+------------------------------------------------------------------------------------------
+IOT-AND-FWA
+--------------------------------------
+Refactor BulkChannelMappingModel and BulkChannelMappingService for improved mapping operations
+
+feat: Update BulkChannelMappingService and views for improved processing feedback
+
+
+April 4, 2026 (7h 20 mins)
+------------------------------------------------------------------------------------------
+IOT-AND-FWA
+--------------------------------------
+fix: Add refresh stats functionality for upload results after redirect (No Break, 45mins)
+Updated material-icons & bootstrap.bundle assets (20mins, 45mins)
+fix: Resolve file path for bulk channel mapping refresh command (20mins, 30mins)
+updated bulk channel mapping index (20mins, 1hr)
+
+MFS
+--------------------------------------
+feat: update environment configuration for UAT deployment (10mins, 1hr 15 mins)
+feat: Restore renderCounter logic and update shouldRender conditions in useMerchantChildrenTables hook (10mins, 1hr 05 mins)
+fix: disable head office rendering in useMerchantChildrenTables hook (10mins, 45mins)
+fix: update rendering logic for StatusBadge and merchant category handling in useMerchantChildrenTables hook (10mins, 45mins)
